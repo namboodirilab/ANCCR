@@ -1,4 +1,4 @@
-function fnames = findfiles(targetstr,directory,recurse,targetdir)
+function fnames = findfiles(targetstr,directory,recurse,targetdir,targetext)
 % Finds all files with the specified extension in the current directory and
 % subdirectories (recursive). Returns a cell array with the fully specified
 % file names.
@@ -28,7 +28,7 @@ function fnames = findfiles(targetstr,directory,recurse,targetdir)
 % $Id: findfiles.m 1.5 2001/05/25 01:54:17 tchristney Exp $
 
 % Revision 1.6 2022/10/08 huijeong
-% Now it searches targetstr in filename
+% Now it searches targetstr and targetext in filename
 %
 % $Log: findfiles.m $
 % Revision 1.5  2001/05/25 01:54:17  tchristney
@@ -50,6 +50,7 @@ if nargin == 1
     directory = cd;
     recurse = (1==1);
     targetdir = nan;
+    targetext = nan;
 elseif nargin == 2
     oldDir = cd;
     cd(directory);
@@ -57,13 +58,21 @@ elseif nargin == 2
     cd(oldDir);
     recurse = (1==1);
     targetdir = nan;
-elseif nargin >= 3
+    targetext = nan;
+elseif nargin == 3
     oldDir = cd;
     cd(directory);
     directory = cd;
     cd(oldDir);
-    if nargin ==3
-        targetdir = nan;
+    targetdir = nan;
+    targetext = nan;
+elseif nargin >=4
+    oldDir = cd;
+    cd(directory);
+    directory = cd;
+    cd(oldDir);
+    if nargin==4
+        targetext = nan;
     end
 end
 
@@ -86,14 +95,22 @@ for i=1:length(d)
         % then if the last occurrence is at the end of the file name,
         % add the file name to the list.
         %         if length(d(i).name) == (extIndices(length(extIndices)) + length(targetstr))
-        numMatches = numMatches + 1;
-        fnames{numMatches} = fullfile(directory,d(i).name);
+        if ~isnan(targetext)
+            [~,~,ext] = fileparts(d(i).name);
+            if strcmp(ext,targetext)
+                numMatches = numMatches + 1;
+                fnames{numMatches} = fullfile(directory,d(i).name);
+            end
+        else
+            numMatches = numMatches + 1;
+            fnames{numMatches} = fullfile(directory,d(i).name);
+        end
         %         end
         % otherwise, descend directories appropriately.
         % note that this could result in a recursion limit error if it tries to
         % follow symbolic links that loop back on themselves...
-    elseif recurse & d(i).isdir & ~strcmp(d(i).name,'.') & ~strcmp(d(i).name,'..')
-        fnames = [fnames findfiles(targetstr,fullfile(directory,d(i).name),recurse,targetdir)];
+    elseif recurse==1 & d(i).isdir & ~strcmp(d(i).name,'.') & ~strcmp(d(i).name,'..')
+        fnames = [fnames findfiles(targetstr,fullfile(directory,d(i).name),recurse,targetdir,targetext)];
         numMatches = length(fnames);
     end
 end

@@ -7,21 +7,28 @@ nMouse = length(mouseList);
 
 [rcorr_iri,out_bgd,out_nolick] = deal(NaN(15,nMouse));
 rcorr_trial = NaN(nMouse,1);
+
+% event indices
+index_lick = 5;
+index_bgdrw = 7;
+index_sessionend = 0;
+
 for iM = 1:nMouse
     iM
-    behfile = findfiles('Events_randomrewards.mat',[directory,'\',mouseList{iM},'\Randomrewards'],1,'Day');
+    % pool behavior files
+    behfile = findfiles(mouseList{iM},[directory,'\',mouseList{iM},'\Randomrewards'],1,'Day','.mat');
     days = cellfun(@(y) str2double(y(4)),cellfun(@(x) strsplit(fileparts(x),{'Day','_'}),...
         behfile,'UniformOutput',false));
     [~,sortidx] = sort(days);
     behfile = behfile(sortidx);
     index_30s = cellfun(@(x) contains(fileparts(x),'30s'),behfile);
-    behfile(find(index_30s,1,'first'):end) = []; % use only 12s IRI sessions
+    behfile(find(index_30s,1,'first'):end) = []; % use 12s IRI sessions
     nFile = length(behfile);
 
     [auc,rewardnum] = deal(cell(nFile,1));
     n = 0;
     for iF = 1:nFile
-        load(behfile{iF});
+        load(behfile{iF},'eventlog');
         
         try
             load([fileparts(behfile{iF}),'\Photometry.mat'],'dff','T');
@@ -29,18 +36,30 @@ for iM = 1:nMouse
             auc{iF} = deal(NaN(length(bgdrwinterval),1));
             continue
         end
+        
+        eventtime = eventlog(:,2);
+        eventindex = eventlog(:,1); 
 
-        % exclude rewards w/ <3s IRI
+        % calculate event time stamps
+        licktime = eventtime(eventindex==index_lick);
+        bgdrwtime = eventtime(eventindex==index_bgdrw);
+        bgdrwinterval = [NaN;diff(bgdrwtime)];
+        sessionendtime = eventtime(eventindex==index_sessionend);
+        firstlicktime = firsttimeafterevent(licktime,bgdrwtime,[bgdrwtime(2:end);sessionendtime]);
+
+        % exclude rewards w/ <3s IRI or w/o lick until next reward delivery
         out_bgd(iF,iM) = mean(bgdrwinterval<3000 & [1:length(bgdrwtime)]'>1);
         out_nolick(iF,iM) = mean(isnan(firstlicktime));
         out = bgdrwinterval<3000 | isnan(firstlicktime);
         out(1) = false;  
 
+        % calculate dopamine response before(baseline) and after(signal) 
+        % first lick following each reward
         auc_signal = aucsignal2event(T(:,1),dff(:),firstlicktime,[-500 1000],out);
         auc_baseline = aucsignal2event(T(:,1),dff(:),firstlicktime,[-2000 -500],out);
+        
         % normalized dopamine response by subtracting baseline response
         auctemp =  auc_signal-auc_baseline;
-
         auc{iF} = auctemp(~out);
         rewardnum{iF} = find(~out)+n; 
 
@@ -52,7 +71,7 @@ for iM = 1:nMouse
     rcorr_trial(iM) = corr(cell2mat(rewardnum),cell2mat(auc),'rows','complete');
 end
 
-%% correlation b/w dopamine response and reward number 
+%% correlation b/w dopamine response and reward number (fig3E)
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 1.65 2.9]);
 hold on;
 bar(0,nanmean(rcorr_trial),1,'FaceColor',[0.8 0.8 0.8],'EdgeColor','k','LineWidth',0.35);
@@ -64,7 +83,7 @@ set(gca,'Box','off','TickDir','out','FontSize',7,'LineWidth',0.35,'XTick',[],'YT
 ylabel('r (DA vs. # of rewards)','FontSize',8)
 [~,pval,~,stat] = ttest(rcorr_trial);
 
-%% correlation b/w dopamine response and iri 
+%% correlation b/w dopamine response and iri (fig3G)
 r = nanmean(rcorr_iri,1); % session-average of each animal
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 1.65 2.9]);
 hold on;

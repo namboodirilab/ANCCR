@@ -43,13 +43,14 @@ ntime = size(eventlog,1);
 nstimuli = length(unique(eventlog(:,1)));
 samplingtime = 0:samplinginterval:eventlog(end,2);
 
-% if T is a vector, use T(jt) for the calculation at time jt. othersiwse,
+% if T is a vector, use T(jt) for the calculation at time jt. otherwise,
 % use fixed T
 if length(T)==1
     T = repmat(T,size(eventlog,1),1);
 end
 gamma = exp(-1./T);
 
+% Initialize model values
 [Eij,Ei,Mi,Delta] = deal(zeros(nstimuli,ntime));
 [Mij,PRC,SRC,NC,ANCCR,Rs] = deal(zeros(nstimuli,nstimuli,ntime));
 R = zeros(nstimuli,nstimuli);
@@ -92,24 +93,33 @@ for jt = 1:ntime
         end
     
         if jt>1
+            % update delta w/prev value
             Delta(:,jt) = Delta(:,jt-1)*gamma(jt)^(eventlog(jt,2)-eventlog(jt-1,2));
+            % update instantaneous elig. trace w/prev value
             Eij(:,jt) = Eij(:,jt-1)*gamma(jt)^(eventlog(jt,2)-eventlog(jt-1,2));
+            % update average elig. trace w/prev value
             Mij(:,:,jt) = Mij(:,:,jt-1);
+            % update anccr w/prev value
             ANCCR(~ismember(1:nstimuli,je),:,jt) = ANCCR(~ismember(1:nstimuli,je),:,jt-1);
         end
         % Indicator for whether event has recently happened
         % Delta resets to one at every instance of event w/o cumulative sum
         Delta(je,jt) = 1;
+        % Increment inst. elig. trace by 1 for event that occurred
         Eij(je,jt) = Eij(je,jt)+1;
+        % Update avg. elig. trace 
         Mij(:,je,jt) = Mij(:,je,jt)+alphat*(Eij(:,jt)-Mij(:,je,jt)).*Imct(je);
         
+        % Subtract baseline elig. from avg. elig. to find successor rep.
         PRC(:,:,jt) = Mij(:,:,jt)-repmat(Mi(:,jt),1,nstimuli);
+        % Calculate predecessor rep from successor rep.
         SRC(:,:,jt) = PRC(:,:,jt).*repmat(Mi(:,jt)',nstimuli,1)./repmat(Mi(:,jt),1,nstimuli);
+        % Zero out values that may approach -Inf
         belowminrate = Mi(:,jt)/T(jt)<minimumrate;
         SRC(belowminrate,:,jt) = 0;
         
         % something to make sure only calculating contingency and R after experiencing
-        % first Y; this part can be improved later
+        % first outcome
         PRC(numevents==0,:,jt) = 0;
         PRC(:,numevents==0,jt) = 0;
         SRC(numevents==0,:,jt) = 0;
@@ -117,10 +127,11 @@ for jt = 1:ntime
         R(:,numevents==0) = 0;
         R(numevents==0,:) = 0;
         
+        % Calculate net contingency, weighted sum of SRC/PRC
         NC(:,:,jt) = w*SRC(:,:,jt)+(1-w)*PRC(:,:,jt);
         
         % Indicator for whether an event is associated with another event
-         Iedge = mean(NC(:,je,max([1,jt-nevent_for_edge]:jt)),3)>threshold;
+        Iedge = mean(NC(:,je,max([1,jt-nevent_for_edge]:jt)),3)>threshold;
         Iedge(je) = false;
         
         % once the cause of reward state is revealed, omission state of that
@@ -135,9 +146,10 @@ for jt = 1:ntime
         R(je,je) = eventlog(jt,3);
             
         for ke = 1:nstimuli
+            % Update edge indicator
             Iedge_ke = mean(NC(:,ke,max([1,jt-nevent_for_edge]:jt)),3)>threshold;
             Iedge_ke(ke) = false;
-            
+            % update ANCCR
             ANCCR(ke,:,jt) = NC(ke,:,jt).*R(ke,:)-...
                     sum(ANCCR(:,:,jt).*Delta(:,jt).*repmat(Iedge_ke,1,nstimuli));
         end
@@ -159,10 +171,13 @@ for jt = 1:ntime
         % This must come after opto s.t. Imct is not formed before opto applied
         Imct(je) = Imct(je) | DA(jt)+beta(je)>threshold;
 
+        % Update estimated reward value
         Rs(:,:,jt) = R;
         if DA(jt)>=0
+            % For positive DA response, use standard update rule
             R(:,je) = R(:,je)+alpha_r*(eventlog(jt, 3)-R(:,je));
         else
+            % For negative DA response, use overprediction update rule
             if any(Iedge)
                 R(Iedge,je) = R(Iedge,je) -...
                     alpha_r*R(Iedge,je).*((Delta(Iedge,jt)./numevents(Iedge)) ./ sum((Delta(Iedge,jt)./numevents(Iedge))));
@@ -173,9 +188,11 @@ for jt = 1:ntime
         
     end
     
+    % Update sample eligibility trace
     if jt<ntime
+        % Time to sample baseline b/t events
         subsamplingtime = samplingtime(samplingtime>=eventlog(jt,2) & samplingtime<eventlog(jt+1,2));
-              
+        
         Ei(:,jt+1) = Ei(:,jt)*gamma(jt)^samplinginterval;
         if ~isempty(subsamplingtime)
             for jjt = nextt:jt
@@ -189,6 +206,7 @@ for jt = 1:ntime
             end
             nextt = jt+1;
         end
+
         if exact_mean_or_not == 0
             if ~isstruct(alpha)
                 alphat = alpha;
@@ -199,6 +217,7 @@ for jt = 1:ntime
             alphat = 1/(numsampling+1);
         end
         
+        % Update avg. sample eligibility trace
         Mi(:,jt+1) = Mi(:,jt)+k*alphat*(Ei(:,jt+1)-Mi(:,jt));
         for iit = 2:length(subsamplingtime)
             if exact_mean_or_not == 0

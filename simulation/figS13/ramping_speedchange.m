@@ -1,3 +1,5 @@
+% simulate speed change task used in Kim et al., 2020 with ANCCR
+
 clearvars; close all; clc;
 rng(2)
 
@@ -28,21 +30,21 @@ darsp = cell(3,1);
 nIter = 100;
 for iiter = 1:nIter
     iiter
-    %conditioning
+    %% generate eventlog
+    % training before incorporating speed change trials
     eventlog_pre = simulateEventChain(numcue, 8, nan, meanITI, ...
         meanITI*3, cuecuedelay, cuerewdelay, 1, consumdelay);
+    % test trials including speed change trials
     eventlog_post = simulateEventChain(numcue, 8, nan, meanITI, ...
         meanITI*3, cuecuedelay, cuerewdelay, 1, consumdelay);
-    
+
+    % in 20% of total trials, speed was manipulated to X2 or X0.5
     testidx = randsample(find(eventlog_post(:,1)==1),round(numcue*0.2));
     testidx = cellfun(@(x) sort(testidx(round(numcue*0.2*x/2)+1:round(numcue*0.2*(x+1)/2))),...
         num2cell(0:1),'UniformOutput',false);
     [~,testtrial] = cellfun(@(x) ismember(x,find(eventlog_post(:,1)==1)),testidx,'UniformOutput',false);
     testtrial = cellfun(@(x) x+numcue,testtrial,'UniformOutput',false);
-    
-    ctrltrial = numcue+1:numcue*2;
-    ctrltrial = ctrltrial(~ismember(ctrltrial,cell2mat(testtrial)));
-    
+
     for itest = 1:2
         for i = 1:length(testtrial{itest})
             deltat = 8*(speed(itest)-1)/cuecuedelay;
@@ -53,10 +55,16 @@ for iiter = 1:nIter
         end
     end
     
+    % control trial w/o speed change 
+    ctrltrial = numcue+1:numcue*2;
+    ctrltrial = ctrltrial(~ismember(ctrltrial,cell2mat(testtrial)));
+   
+    %% simulate 
     eventlog = joinEventlogs(eventlog_pre,eventlog_post);
     [DA,ANCCR,PRC,SRC,NC] = calculateANCCR(eventlog, (meanITI+cuerewdelay*8+consumdelay)*Tratio, alpha, k,...
         samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter);
     
+    % pool dopamine response
     incue = find(eventlog(:,1)==1);
     for itest = 1:2
         intest = incue(testtrial{itest})+1+(itest-1)*2;
@@ -66,16 +74,12 @@ for iiter = 1:nIter
     darsp{3}(iiter,:) = mean(DA(incue(ctrltrial)+[0:7]),1);
 end
 
-%%
+%% save data
 dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\';
 cd(dir)
 save('data\ramping_speedchange.mat','darsp','threshold');
 
-%%
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\';
-load([dir,'data\ramping_speedchange.mat'],'darsp','threshold');
-
-
+%% FigS13D
 ct = cbrewer('seq','YlOrRd',5);
 ct = [ct([2,5],:);0 0 0];
 ratio = [speed,1];
@@ -95,4 +99,3 @@ ylim([0 2]);
 ylabel({'Normalized';'predicted DA'});
 set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,...
     'XTick',1:4,'XTickLabel',{'Slow';'Stand.';'Fast'},'XTickLabelRotation',45,'YTick',0:1:2);
-print(fHandle,'-depsc','-painters','ramping_speedchange_bar.ai');

@@ -1,3 +1,6 @@
+% simulate pavlovian conditioning task (experiment 2-5) with ANCCR, CSC w/
+% ITI states, and CSC w/o ITI states
+
 clearvars; clc; close all;
 rng(2);
 
@@ -27,7 +30,7 @@ beta = [0,0,1,0];
 threshold = 0.6;
 Tratio = 1.2;
 
-% rpe model parameters - csc/microstimulus
+% rpe model parameters - csc
 alpha_rpe = 0.05;
 gamma = 0.95;
 lambda = 0;
@@ -42,22 +45,29 @@ cuersp = nan(3,size(cuerewdelay,1),nIter,round(numcue*4/3));
 for iIter = 1:nIter
     iIter
     for iC = 1:size(cuerewdelay,1)
+        %% generate eventlogs
+        % pre-conditioning random reward session
         eventlog_rr = simulateBackgroundRewards(numrewards,....
             meanIRI,3,1,0);
+        % before condition change (ex: before cue duration change)
         [eventlog_c1,IRI_c1] = simulateEvents(repmat(numcue,1,2), [1,2], [3,nan], ...
             [1,nan], [4,nan], meanITI, meanITI*3, cuerewdelay(iC,1), [rwprob(iC,1),0],...
             postrewdelay, 3, bgdrwperiod(iC,1), mincuebgddelay(iC,1), 1);
+        % after condition change (ex: after cue duration change)
         [eventlog_c2,IRI_c2] = simulateEvents(repmat(numcue,1,2), [1,2], [3,nan], ...
             [1,nan], [4,nan], meanITI, meanITI*3, cuerewdelay(iC,2), [rwprob(iC,2),0],...
             postrewdelay, 3, bgdrwperiod(iC,2), mincuebgddelay(iC,2), 1);
-               
+        
+        %% simulate
         for imdl = 1:2
             switch imdl
                 case 1
+                    % simulate CSC
                     eventlog = joinEventlogs(eventlog_c1,eventlog_c2);
                     [DA,~,eventtimeline] = simulateCSC(eventlog,3,statesize,alpha_rpe,gamma,lambda,[]);
                     incue = eventtimeline(:,1)==1;
                 case 2
+                    % simulate ANCCR
                     eventlog = joinEventlogs(eventlog_rr,eventlog_c1,eventlog_c2);
                     T = [ones(numrewards,1)*meanIRI; ones(size(eventlog_c1,1),1)*IRI_c1;...
                         ones(size(eventlog_c2,1),1)*IRI_c2];
@@ -67,8 +77,9 @@ for iIter = 1:nIter
                         samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,[4,3],0);
                     incue = eventlog(:,1)==1;
             end
+
+            % pool cue response
             cuersp_temp = DA(incue);
-            
             if iC==1
                 cuersp(imdl,1,iIter,1:numcue) = cuersp_temp(1:numcue); % initial learning
             end
@@ -76,7 +87,7 @@ for iIter = 1:nIter
         end
         
         if iC==2
-            % w/o ITI states
+            % CSC w/o ITI states in background reward condition
             eventlog = joinEventlogs(eventlog_c1,eventlog_c2);
             [DA,~,eventtimeline] = simulateCSC(eventlog,3,statesize,alpha_rpe,gamma,lambda,[],0,cuerewdelay(iC,:));
             incue = eventtimeline(:,1)==1;
@@ -86,13 +97,12 @@ for iIter = 1:nIter
     end
 end
 
-%%
+%% save data
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('cuerewlearning_experiment.mat','cuersp');
 
-%%
-load('cuerewlearning_experiment.mat');
-shortiri = load('cuerewlearning_shortiri.mat');
+%% FigS10A
+shortiri = load('cuerewlearning_shortiri.mat'); % from cuereward_shortiri.m
 close all
 x = [1,2,4,3];
 test = [3,4,7,6];
@@ -149,6 +159,3 @@ for imdl = 1:2
          end
     end
 end
-%%
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-print(fHandle,'-depsc','-painters',[dir,'\cuerewlearning_experiment.ai']);

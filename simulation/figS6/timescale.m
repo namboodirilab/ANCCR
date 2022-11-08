@@ -1,3 +1,5 @@
+% simulate trial-less task with various cue-reward delays using CSC and
+% ANCCR models
 clearvars; clc; close all;
 rng(2);
 
@@ -20,7 +22,6 @@ beta = [0,1];
 threshold = 0.6;
 Tratio = 5;
 exact_mean_or_not = 1;
-% exact_mean_or_not = 0;
 
 % rpe model parameters - csc/microstimulus
 alpha_rpe = 0.05;
@@ -28,7 +29,7 @@ gamma = 0.95;
 lambda = 0;
 statesize = 0.2;
 
-nIter = 3;
+nIter = 100;
 %%
 avecuersp = nan(2,length(cuerewdelay)+1,nIter);
 for iIter = 1:nIter
@@ -36,12 +37,14 @@ for iIter = 1:nIter
     for iD = 1:length(cuerewdelay)+1
         
         if iD<length(cuerewdelay)+1
+            % cue-reward association w/ variable cue-reward delays
             eventlog = simulateBackgroundRewards(numcue,....
                 repmat(meanITI,1,2),1,0,1);
             rwtimes = eventlog(:,2)+cuerewdelay(iD);
             eventlog = [eventlog;[ones(numcue,1)*2,rwtimes,ones(numcue,1)]];
             eventlog = sortrows(eventlog,2);
         else
+            % no cue-reward association control
             eventlog = simulateBackgroundRewards(repmat(numcue,1,2),....
                 repmat(meanITI,1,2),[1,2],[0,1],1);
         end
@@ -55,17 +58,18 @@ for iIter = 1:nIter
                         samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,nan,exact_mean_or_not);
                     incue = eventlog(:,1)==1;
             end
+            % calculate averaged cue response over last 500 cues
             cuersp = DA(incue);
             avecuersp(imdl,iD,iIter) = mean(cuersp(end-499:end));
         end
     end
 end
 
-%%
+%% save data
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('timescale.mat','avecuersp','cuerewdelay','meanITI');
 
-%%
+%% Fig6SB
 ct = cbrewer('qual','Dark2',3);
 clr = [0 0 0; 0.6 0.6 0.6];
 
@@ -75,9 +79,6 @@ for imdl = 1:2
     hold on;
     data = squeeze(avecuersp(imdl,1:end-1,:));
     data_ctrl = sort(squeeze(avecuersp(imdl,end,:)));
-    
-%     plot([-1 6],repmat(data_ctrl(0.95*nIter),1,2),'k--');
-        
 
     plot(cuerewdelay/meanITI,data,'Color',[0.6 0.6 0.6],'LineWidth',0.35);
     errorbar(cuerewdelay/meanITI,nanmean(data,2),nanstd(data,[],2)/sqrt(nIter),'Color','k','LineWidth',0.5);
@@ -94,6 +95,3 @@ for imdl = 1:2
     end
     
 end
-%%
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-print(fHandle,'-depsc','-painters',[dir,'\timescale.ai']);

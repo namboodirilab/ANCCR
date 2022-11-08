@@ -1,7 +1,11 @@
+% simulate trial-less task with CSC, microstimulus, ANCCR models
+
 clearvars; clc; close all
 
 rng(2)
 
+%% parameter set up
+% task parameter (standard pavlovian conditioning -> trial-less task)
 meanITI = [30 33];
 maxITI = meanITI*3;
 cuerewdelay = [9 3];
@@ -9,6 +13,7 @@ outcomedelay = 3;
 cueduration = 0.25;
 numcue = [2000, 1000];
 
+% anccr model parameters
 samplingperiod = 0.2;
 alpha = 0.02;
 alpha_r = 0.2;
@@ -19,6 +24,7 @@ beta = [0,0,1]';
 maximumjitter = 0.1;
 minimumrate = 10^(-3);
 Tratio = 1.2;
+T = meanITI(2)*Tratio;
 
 % rpe model parameters - csc/microstimulus
 alpha_rpe = 0.05;
@@ -28,14 +34,15 @@ statesize = 0.2;
 sigma = 0.08;
 nmicrostimulus = 20;
 d = 0.99;
-nIter = 100;
 
+nIter = 100;
 
 %% Simulate experiment
 [cueave,rwave] = deal(nan(nIter,2,3));
 for iiter = 1:nIter
     iiter
     
+    %% generate eventlog
     % pre-conditioning w/ trial structure
     eventlog_cond = simulateEvents(repmat(numcue(1),1,2),[1,2],3,...
         [1,1],[nan,nan],repmat(meanITI(1),1,2),repmat(maxITI(1),1,2),...
@@ -44,12 +51,11 @@ for iiter = 1:nIter
     % trial-less conditioning
     eventlog = simulateEventsTrialLess(numcue(2), 1, 3, 1, nan,...
         meanITI(2), maxITI(2), cueduration, cuerewdelay(2), 1);
-    eventlog(:,2) = eventlog(:,2)+eventlog_cond(end,2);
-    eventlog = [eventlog_cond; eventlog];
     
-    T = meanITI(2)*Tratio;
-
+    eventlog = joinEventlogs(eventlog_cond, eventlog);
+    
     for imdl = 1:3
+        % simulate same condition using three different models
         switch imdl
             case 1
                 [DA,~,eventtimeline] = simulateCSC(eventlog,3,statesize,alpha_rpe,gamma,lambda(1),[]);
@@ -61,6 +67,7 @@ for iiter = 1:nIter
                     samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,nan);
         end
         
+        % pool cue and reward responses
         if imdl<3
             incue = find(eventtimeline(:,1)==1,numcue(2),'last');
             cuetimes = incue*statesize;
@@ -84,6 +91,7 @@ for iiter = 1:nIter
         trialidx(find(sum(trialidx,2)==2)+1,:) = 0;
         trialidx(sum(trialidx,2)==2,:) = 0;
         
+        % average cue and reward response 
         for i = 1:2
             cueave(iiter,i,imdl) = mean(cuersp(trialidx(:,i)==1));
             rwave(iiter,i,imdl) = mean(rwrsp(trialidx(:,i)==1));
@@ -91,19 +99,19 @@ for iiter = 1:nIter
     end
 end
 
-%%
+%% save data
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('poisson.mat','cueave','rwave');
 
-%%
+%% Fig5B
 x = [0.5 2 4.5];
 typelist = {'cue';'reward'};
 model = {'RPE (CSC)','RPE (MS)','ANCCR'};
 for i = 1:2
     if i==1
-        ratio = squeeze(cueave(:,2,:)./cueave(:,1,:));
+        ratio = squeeze(cueave(:,2,:)./cueave(:,1,:)); % Fig5B left (cue response)
     else
-        ratio = squeeze(rwave(:,2,:)./rwave(:,1,:));
+        ratio = squeeze(rwave(:,2,:)./rwave(:,1,:)); % Fig5B right (reward response)
     end
     fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 3.7 4.5]);
     hold on;
@@ -127,6 +135,4 @@ for i = 1:2
         set(gca,'YTick',0:2);
     end
     xlim([-0.5 5.5]);
-        cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\fig4');
-        print(fHandle,'-depsc',['model_',typelist{i},'.ai']);
 end

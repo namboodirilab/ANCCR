@@ -1,3 +1,5 @@
+% simulate sequential learning task with different lambda
+
 clearvars; close all; clc;
 rng(2)
 
@@ -23,41 +25,37 @@ nExp = size(meanITI,1); % number of experiments
 
 %%
 
-nIter = 5;
+nIter = 20;
 darsp = cell(2,length(lambda),3);
 valuemap = cell(2,length(lambda));
 for iIter = 1:nIter
+    % generate eventlog
     eventlog = simulateEventChain(numcue, 2, 4, meanITI, ...
         meanITI*3, cuecuedelay, cuerewdelay, 1, consumdelay);
     
     for irpe = 1:2 % 1: csc, 2: microstimulus
-        for iparam = 1:length(lambda) % different inhibition level
+        for iparam = 1:length(lambda) % different lambda
             printf('%d iteration: %d lambad, %d rpe model\n',iIter,iparam,irpe);
             if irpe==1
                 [rpetimeline,valuetimeline,eventtimeline,inhibitiontimeline] =...
                     simulateCSC(eventlog,3,statesize,alpha,gamma,lambda(iparam),[]);
-                
             else
                 [rpetimeline,valuetimeline,eventtimeline,inhibitiontimeline] =...
                     simulatemicrostimulus(eventlog,3,numstimulus,...
                     statesize,alpha,gamma,lambda(iparam),sigma,d,[]);
             end
             
+            % pool DA response
             for ie = 1:3 % 1:cs1, 2:cs2, 3:reward
                 inevent = eventtimeline(:,1)==ie;
                 darsp{irpe,iparam,ie}(:,iIter) = rpetimeline(inevent);
-                if ie==1
-                    valuemap{irpe,iparam}(:,:,iIter) =...
-                        cell2mat(cellfun(@(x) valuetimeline([-1/statesize:5/statesize]+x)',...
-                        num2cell(find(inevent)),'UniformOutput',false));
-                end
             end
         end
     end
 end
 %%
 
-%%
+%% FigS12A
 close all
 modelList = {'CSC';'Microstimulus'};
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 12 6]);
@@ -88,10 +86,8 @@ for irpe = 1:2
         
     end
 end
-%%
-print(fHandle,'-depsc','-painters','D:\OneDrive - UCSF\figures\manuscript\dopamine_contingency\revision\figS12_new\rpe_simulation_lambdas.ai')
 
-%%
+%% FigS12B
 close all
 aveda = cellfun(@(x) mean(x(end-49:end,:)),darsp(:,:,:),'UniformOutput',false);
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 4 7]);

@@ -1,3 +1,6 @@
+% simulate pavlovian conditioning task w/o pre-conditioning reward exposure
+% (simulate similar condition used in Coddington and Dudman, 2018)
+
 clearvars; clc; close all;
 
 rng(2)
@@ -28,22 +31,23 @@ rsprw = nan(numcue,nIter);
 
 for iiter = 1:nIter
     iiter
-   [eventlog,IRI] = simulateEvents(numcue, 1, 2, ...
-            1, nan, meanITI, meanITI*3, cuerewdelay, 1,outcomedelay);
-        
-    
-    %% simulate contingency model
-    
-   DA = calculateANCCR(eventlog, IRI*Tratio, alpha, k,...
-                        samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter);
-                    
-   rsprw(:,iiter) = DA(eventlog(:,1)==2);  
+    % generate eventlog
+    [eventlog,IRI] = simulateEvents(numcue, 1, 2, ...
+        1, nan, meanITI, meanITI*3, cuerewdelay, 1,outcomedelay);
+
+    %simulate
+    DA = calculateANCCR(eventlog, IRI*Tratio, alpha, k,...
+        samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter);
+
+    %pool reward response
+    rsprw(:,iiter) = DA(eventlog(:,1)==2);
 
 end
-%%
+
+%% save data
 dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
 
-%%
+%% FigS13E
 m = mean(rsprw,2)';
 s = std(rsprw,[],2)'/sqrt(nIter);
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 4 3.2]);
@@ -56,5 +60,4 @@ ylim([-0.1 1]);
 xlim([0 500]);
 xlabel('Trial')
 ylabel({'Predicted'; 'reward response'});
-print(fHandle,'-depsc','-painters',[dir,'\cuerewlearning_coddington.ai'])
 

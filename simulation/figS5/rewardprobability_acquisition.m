@@ -1,3 +1,5 @@
+% simulate different reward probability condition with ANCCR and CSC
+
 clearvars; clc; close all;
 rng(2);
 
@@ -21,23 +23,29 @@ beta = [0,1];
 threshold = 0.6;
 Tratio = 1.2;
 
-% rpe model parameters - csc/microstimulus
+% rpe model parameters - csc
 alpha_rpe = 0.001;
 gamma = 0.95;
 lambda = 0;
 statesize = 1;
 
-acqthreshold = [0.08; 0.6];
+% threshold defining acqusition trial
+% acquisition trial was defined as the first trial when DA cue response 
+% exceeds this threshold
+acqthreshold = [0.08; 0.6]; 
+
 nIter = 100;
 [acqtrialnum,acqrewardnum] = deal(nan(2,nIter,length(rew_probs)));
 %%
 for iIter = 1:nIter
     iIter
     for iP = 1:length(rew_probs)
-        IRI = (meanITI+cuerewdelay+postrewdelay)/rew_probs(iP);
-        eventlog_rr = simulateBackgroundRewards(500,IRI,2,1,1);
+        % generate eventlogs
+        IRI = (meanITI+cuerewdelay+postrewdelay)/rew_probs(iP); %inter reward interval
+        eventlog_rr = simulateBackgroundRewards(500,IRI,2,1,1); 
         eventlog = simulateEvents(numcue,1,2,...
             1,nan,meanITI,meanITI*3,cuerewdelay,rew_probs(iP),postrewdelay);
+
         for imdl = 1:2
             switch imdl
                 case 1
@@ -45,14 +53,15 @@ for iIter = 1:nIter
                     incue = find(eventtimeline(:,1)==1);
                     inrw = find(eventtimeline(:,1)==2);
                 case 2
-                    eventlog(:,2) = eventlog(:,2)+eventlog_rr(end,2);
-                    eventlog = [eventlog_rr;eventlog];
+                    eventlog = joinEventlogs(eventlog_rr,eventlog); % In ANCCR, pre-train model with random rewards
                     [DA,~,prc,src,nc,r] = calculateANCCR(eventlog, IRI*Tratio, alpha_anccr, k,...
                         samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,nan);
                     incue = find(eventlog(:,1)==1,numcue,'last');
                     inrw = find(eventlog(:,1)==2);
                     inrw(1:500) = [];                    
             end
+            
+            % calculate number of trials/rewards until acquisition
             cuersp = DA(incue);
             acqtrialnum(imdl,iIter,iP) = find(movmean(cuersp,30)>acqthreshold(imdl),1,'first');
             acqrewardnum(imdl,iIter,iP) = sum(inrw<incue(acqtrialnum(imdl,iIter,iP)));
@@ -60,12 +69,11 @@ for iIter = 1:nIter
     end
 end
 
-%%
+%% save data
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('rewardprobability_acquisition.mat','acqtrialnum','acqrewardnum','rew_probs');
 
-%%
-
+%% FigS5D
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 7 4]);
 
 for imdl = 1:2
@@ -89,7 +97,3 @@ for imdl = 1:2
          title({'ANCCR';'(model 2)'});
      end
 end
-
-%%
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-print(fHandle,'-depsc','-painters',[dir,'\rewardprobability_acquisition.ai']);

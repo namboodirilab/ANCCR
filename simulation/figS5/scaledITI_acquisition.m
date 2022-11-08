@@ -1,3 +1,5 @@
+% simulate different length of cue-reward delay with scaled or fixed ITI
+
 clearvars; clc; close all;
 rng(2);
 
@@ -20,14 +22,18 @@ maximumjitter = 0.1;
 beta = [0,1];
 threshold = 0.6;
 
-% rpe model parameters - csc/microstimulus
+% rpe model parameters - csc
 alpha_rpe = 0.025;
 gamma = 0.95;
 lambda = 0;
 statesize = 1;
 
+% threshold defining acqusition trial
+% acquisition trial was defined as the first trial when DA cue response 
+% exceeds this threshold
 acqthreshold = [0.08; 0.6];
 nIter = 100;
+
 acqtrialnum = nan(2,nIter,length(cuerewdelay),2);
 %%
 for iIter = 1:nIter
@@ -35,24 +41,29 @@ for iIter = 1:nIter
     for iD = 1:length(cuerewdelay)
         for iI = 1:2
             if iI==1
-                meanITI = cuerewdelay(1)*10;
+                % fixed ITI: ITI was set to 30s regardless of length of cue-reward delay
+                meanITI = cuerewdelay(1)*10; 
             else
+                % scaled ITI: ITI was set to 10 times of cue-reward delay
                 meanITI = cuerewdelay(iD)*10;
             end
+            % generate eventlog
             IRI = meanITI+cuerewdelay(iD)+postrewdelay;
             eventlog = simulateEvents(numcue,1,2,...
                 1,nan,meanITI,meanITI*3,cuerewdelay(iD),rew_probs,postrewdelay);
+
             for imdl = 1:2
                 switch imdl
                     case 1
                         [DA,~,eventtimeline] = simulateCSC(eventlog,2,statesize,alpha_rpe,gamma,lambda,[]);
                         incue = eventtimeline(:,1)==1;
                     case 2
-                        % anccr dosen't need long traning - cut out some trials
                         DA = calculateANCCR(eventlog, IRI*Tratio, alpha_anccr, k,...
                             samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,nan);
                         incue = eventlog(:,1)==1;
                 end
+
+                % calculate number of trials until acquisition
                 cuersp = DA(incue);
                 acqtrialnum(imdl,iIter,iD,iI) = find(movmean(cuersp,30)>acqthreshold(imdl),1,'first');
             end
@@ -60,12 +71,11 @@ for iIter = 1:nIter
     end
 end
 
-%%
+%% save data
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('scaledITI_acquisition.mat','acqtrialnum','cuerewdelay','acqthreshold');
 
-%%
-
+%% FigS5C
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 7 4]);
 
 for imdl = 1:2
@@ -87,5 +97,3 @@ for imdl = 1:2
          title({'ANCCR';'(model 2)'});
      end
 end
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-print(fHandle,'-depsc','-painters',[dir,'\scaledITI_acquisition.ai']);

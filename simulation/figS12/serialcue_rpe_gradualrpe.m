@@ -1,3 +1,6 @@
+% simulate sequential learning task with gradually increasing inhibition
+% level using microstimulus model
+
 clearvars; close all; clc;
 rng(2)
 
@@ -23,21 +26,16 @@ sigma = 0.08; % width of basis function
 nIter = 20;
 darsp = cell(2,3);
 for iIter = 1:nIter
+    % generate eventlog
     eventlog = simulateEventChain(numcue, 2, 4, meanITI, ...
         meanITI*3, cuecuedelay, cuerewdelay, 1, consumdelay);
-    
-    for iinh = 1:2
-        if iinh==1
-            inhibitionlog = [eventlog(eventlog(:,1)==2,2),...
-                eventlog(eventlog(:,1)==2,2)+cuecuedelay,...
-                ones(numcue,1)*inhibitionstrength];
-        else
-            inhibitionlog = [eventlog(eventlog(:,1)==2,2),...
-                eventlog(eventlog(:,1)==2,2)+cuecuedelay,...
-                zeros(numcue,1), ones(numcue,1)*inhibitionstrength];
-        end
-    
 
+    % inhibition magnitude starts from 0 and linearly increases to -0.6
+    inhibitionlog = [eventlog(eventlog(:,1)==2,2),...
+        eventlog(eventlog(:,1)==2,2)+cuecuedelay,...
+        zeros(numcue,1), ones(numcue,1)*inhibitionstrength]; 
+
+    % simulate 
     [rpetimeline,valuetimeline,eventtimeline,inhibitiontimeline] =...
         simulatemicrostimulus(eventlog,3,numstimulus,statesize,alpha,gamma,lambda,sigma,d,inhibitionlog);
     
@@ -45,13 +43,11 @@ for iIter = 1:nIter
         inevent = eventtimeline(:,1)==ie;
         darsp{iinh,ie}(:,iIter) = rpetimeline(inevent);
     end
-    end
 end
 
-%%
+%% FigS12D
 close all
 clr ={'r','k'};
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 2 3]);
 hold on;
 iinh = 2;
@@ -65,5 +61,4 @@ ylabel({'Predicted';'CS1 response'});
 title({'Model 1';'microstimluus'})
 set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,'XTick',0.5,...
     'XTickLabel',[],'YTick',-4:2:0);
-print(fHandle,'-depsc','-painters',[dir,'\sequential_microstimulus_gradual_cs1.ai'])
 

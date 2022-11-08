@@ -1,3 +1,5 @@
+% simulate random reward task with CSC, microstimulus, ANCCR models
+
 clearvars; clc;
 rng(7)
 
@@ -35,9 +37,12 @@ iri = cell(3,1);
 %% simulation
 for iiter = 1:nIter
     iiter
+    % generate eventlog of random reward session
     eventlog = simulateBackgroundRewards(numrewards(1),meanITI,1,1,0);
     eventlog(:,2) = eventlog(:,2)+1;
+
     for imdl = 1:3
+        % simulate same condition using three different models
         if iiter==1
             [rwrsp{imdl},iri{imdl}] = deal(nan(numrewards(imdl),nIter));
         end
@@ -54,7 +59,11 @@ for iiter = 1:nIter
                     minimumrate,beta,alpha_r,maximumjitter);
                 eventtimeline = eventlog(1:numrewards(imdl),1);
         end
+
+        % pool reward response 
         rwrsp{imdl}(1:sum(eventtimeline(:,1)==1),iiter) = DA(eventtimeline(:,1)==1);
+
+        % calculate IRI
         if imdl<3
             iri{imdl}(1:sum(eventtimeline(:,1)==1),iiter) = [nan;diff(find(eventtimeline(:,1)==1))*statesize];
         else
@@ -63,16 +72,17 @@ for iiter = 1:nIter
     end
 end
 %%
+% save data
 dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
 save([dir,'\data\randomrewards.mat'],'iri','rwrsp');
-%%
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-load([dir,'\data\randomrewards.mat'],'iri','rwrsp');
-%%
+
+%% fit reward response across trials to Weibull fucntion to find the asymptote 
 ft = fittype('A*(1-2^(-(x/L)^S))+b'); %Weibull function; asymptote (b+A), latency (L), abruptness (S)
 
-asymptotetrial = nan(3,1);
+asymptotereward = nan(3,1);
 for imdl = 1:3
+    % fit data to increasing and decreasing Weibull functions, and use the
+    % one with better fitting (larger R square)
     numrwstates = find(sum(isnan(rwrsp{imdl}),2)==0,1,'last');
     [curve1,gof1] = fit([1:numrwstates]',nanmean(rwrsp{imdl}(1:numrwstates,:),2),ft,...
         'Lower',[-2 10 1 1],'Upper',[2 numrwstates 2 3]);
@@ -83,27 +93,32 @@ for imdl = 1:3
     else
         curve = curve2;
     end
+
+    % asymptote reward was defined as the first trial where curve exceeds
+    % 95% of its asymptote
     coef = coeffvalues(curve);
     asymptote = coef(1)+coef(4);
     if coef(4)>coef(1)
-        asymptotetrial(imdl) = find(curve(1:numrwstates)>coef(1)*0.95+coef(4),1,'last');
+        asymptotereward(imdl) = find(curve(1:numrwstates)>coef(1)*0.95+coef(4),1,'last');
     else
-        asymptotetrial(imdl) = find(curve(1:numrwstates)<coef(1)*0.95+coef(4),1,'last');
+        asymptotereward(imdl) = find(curve(1:numrwstates)<coef(1)*0.95+coef(4),1,'last');
     end
+
+    % check fit by plotting
     subplot(1,3,imdl)
     hold on;
     plot([1:numrwstates]',nanmean(rwrsp{imdl}(1:numrwstates,:),2));
     plot(curve)
 end
 
-
-
+%% calculate correlation between reward response and number of rewards until asymptote reward
 for imdl = 1:3
-    r(:,imdl) = cellfun(@(x) corr([1:asymptotetrial(imdl)]',x),...
-        mat2cell(rwrsp{imdl}(1:asymptotetrial(imdl),:),asymptotetrial(imdl),ones(1,nIter)));
+    r(:,imdl) = cellfun(@(x) corr([1:asymptotereward(imdl)]',x),...
+        mat2cell(rwrsp{imdl}(1:asymptotereward(imdl),:),asymptotereward(imdl),ones(1,nIter)));
 end
 
-%%
+%% Fig3C right
+close all
 model = {'RPE (CSC)';'RPE (MS)';'ANCCR'};
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 3 4]);
 hold on;
@@ -113,8 +128,8 @@ for imdl = 1:3
     else
         x = 1.5*imdl;
     end
-    r = cellfun(@(x) corr([1:asymptotetrial(imdl)]',x),...
-        mat2cell(rwrsp{imdl}(1:asymptotetrial(imdl),:),asymptotetrial(imdl),ones(1,nIter)));
+    r = cellfun(@(x) corr([1:asymptotereward(imdl)]',x),...
+        mat2cell(rwrsp{imdl}(1:asymptotereward(imdl),:),asymptotereward(imdl),ones(1,nIter)));
    bar(x,mean(r),1,'FaceColor',[0.8 0.8 0.8],'EdgeColor','k','LineWidth',0.35);
    errorbar(x,mean(r),std(r)/sqrt(nIter),'k','Linewidth',0.5,'CapSize',3);
    [~,p,~,stat] = ttest(r)
@@ -125,32 +140,26 @@ set(gca,'Box','off','TickDir','out','FontSize',7,'LineWidth',0.35,...
     'XTick',[0.5 2 4.5],'XTickLabel',model,'XTickLabelRotation',45,...
     'YTick',-0.4:0.2:0.4,'XLim',[-0.5 5.5]);
 ylabel('r (predicted DA vs. trial)','FontSize',8);
-print(fHandle,'-depsc','-painters',[dir,'\randomrewards_trial_bar.ai']);
 
-%%
+%% Fig3C left (example)
 imdl = 2;
 iiter = 7;
-% in = 1:size(DArsp,1)<lasttrial(imdl) & iri(:,iiter)'>3;
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 3.1 3.3]);
 hold on;
-[r,p] = corr([1:asymptotetrial(imdl)]',rwrsp{imdl}(1:asymptotetrial(imdl),iiter));
-scatter(find(1:asymptotetrial(imdl)),rwrsp{imdl}(1:asymptotetrial(imdl),iiter),2,'k','filled');
-beta = glmfit(find(1:asymptotetrial(imdl)),rwrsp{imdl}(1:asymptotetrial(imdl),iiter));
-plot([0 asymptotetrial(imdl)],beta(1)+beta(2)*[0 asymptotetrial(imdl)],'r','LineWidth',1);
-text(asymptotetrial(imdl)*0.1,2,['r = ',num2str(round(r*100)/100)],'FontSize',7);
-text(asymptotetrial(imdl)*0.1,1.8,['p = ',num2str(round(p*100)/100)],'FontSize',7);
-xlim([0 asymptotetrial(imdl)]);
+[r,p] = corr([1:asymptotereward(imdl)]',rwrsp{imdl}(1:asymptotereward(imdl),iiter));
+scatter(find(1:asymptotereward(imdl)),rwrsp{imdl}(1:asymptotereward(imdl),iiter),2,'k','filled');
+beta = glmfit(find(1:asymptotereward(imdl)),rwrsp{imdl}(1:asymptotereward(imdl),iiter));
+plot([0 asymptotereward(imdl)],beta(1)+beta(2)*[0 asymptotereward(imdl)],'r','LineWidth',1);
+text(asymptotereward(imdl)*0.1,2,['r = ',num2str(round(r*100)/100)],'FontSize',7);
+text(asymptotereward(imdl)*0.1,1.8,['p = ',num2str(round(p*100)/100)],'FontSize',7);
+xlim([0 asymptotereward(imdl)]);
 set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,...
-    'YTick',0.5:0.5:2,'XTick',0:500:asymptotetrial(imdl),'YTick',0:1:3);
+    'YTick',0.5:0.5:2,'XTick',0:500:asymptotereward(imdl),'YTick',0:1:3);
 xlabel('Trial','FontSize',8);
 ylabel('DA response','FontSize',8);
 title('Microstimulus');
-% ylim([0.25 2.5]);
-print(fHandle,'-depsc','-painters',[dir,'\randomrewards_trial_microstimulus.ai']);
 
-
-
-%% 
+%% Fig3F right
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 3 4]);
 hold on;
 for imdl = 1:3
@@ -171,10 +180,8 @@ set(gca,'Box','off','TickDir','out','FontSize',7,'LineWidth',0.35,...
     'XTick',[0.5 2 4.5],'XTickLabel',model,'XTickLabelRotation',45,...
     'YTick',-0.8:0.4:0.8,'XLim',[-0.5 5.5]);
 ylabel('r (predicted DA vs. IRI)','FontSize',8);
-cd(dir);
-print(fHandle,'-depsc','-painters',[dir,'\randomrewards_iri_bar.ai']);
 
-%%
+%% Fig3F left (example)
 iiter = 2;
 imdl = 2;
 in = iri{imdl}(:,iiter)>3;
@@ -194,7 +201,6 @@ set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,...
 xlabel('IRI','FontSize',8);
 ylabel('Predcted DA response','FontSize',8);
 title('Microstimulus');
-print(fHandle,'-depsc','-painters',[dir,'\randomrewards_iri_microstimulus.ai']);
 
 
 

@@ -1,3 +1,6 @@
+% simulate cue duration change task (experiment 3) with short IRI using
+% ANCCR model
+
 clearvars; clc; close all;
 rng(2);
 
@@ -24,25 +27,25 @@ beta = [0,0,1,0];
 threshold = 0.6;
 Tratio = 1.2;
 
-% rpe model parameters - csc/microstimulus
-alpha_rpe = 0.05;
-gamma = 0.95;
-lambda = 0;
-statesize = 0.2;
-
 nIter = 100;
 %%
 cuersp = nan(nIter,round(numcue*4/3));
 for iIter = 1:nIter
     iIter
+    %% generate eventlogs
+    % pre-conditioning random reward session
     eventlog_rr = simulateBackgroundRewards(numrewards,....
         meanIRI,3,1,0);
+    % before cue duration change
     [eventlog_c1,IRI_c1] = simulateEvents(repmat(numcue,1,2), [1,2], [3,nan], ...
         [1,nan], [4,nan], meanITI, meanITI*3, cuerewdelay(1), [1,0], postrewdelay);
+    % after after cue duration change
     [eventlog_c2,IRI_c2] = simulateEvents(repmat(numcue,1,2), [1,2], [3,nan], ...
         [1,nan], [4,nan], meanITI, meanITI*3, cuerewdelay(2), [1,0], postrewdelay);
-    
     eventlog = joinEventlogs(eventlog_rr,eventlog_c1,eventlog_c2);
+
+
+    %% simulate
     T = [ones(numrewards,1)*meanIRI; ones(size(eventlog_c1,1),1)*IRI_c1;...
         ones(size(eventlog_c2,1),1)*IRI_c2];
     
@@ -51,11 +54,10 @@ for iIter = 1:nIter
     incue = eventlog(:,1)==1;
     
     cuersp_temp = DA(incue);
-    
     cuersp(iIter,:) = cuersp_temp(end-round(numcue*4/3)+1:end);
 end
 
-%%
+%% save data - plot in cuerewardlearning_experiment.m
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('cuerewlearning_shortiri.mat','cuersp');
 

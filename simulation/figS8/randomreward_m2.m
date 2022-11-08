@@ -1,3 +1,6 @@
+% simulate random reward task with parameter set that fits an animal who
+% showed negative rewrad response initially
+
 clearvars; clc;
 rng(7)
 
@@ -18,7 +21,7 @@ minimumrate = 10^(-3);
 maximumjitter = 0.1;
 beta = [1];
 threshold = 0.6;
-T = meanITI*10;
+T = meanITI*10; % have very large T
 
 nIter = 100;
 rwrsp = nan(numrewards,nIter);
@@ -36,8 +39,7 @@ for iiter = 1:nIter
     rwrsp(:,iiter) = DA(eventtimeline(:,1)==1);
 end
 
-%% figure
-
+%% FigS8J
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 4 3.3]);
 hold on;
 plot(cumsum(rwrsp,1)./repmat(sum(rwrsp,1),numrewards,1),'Color',[0.6 0.6 0.6],'LineWidth',0.35);
@@ -48,19 +50,3 @@ xlabel('Trial');
 ylabel({'Normalized'; 'cumsum (predicted DA)'})
 set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,'XTick',...
     [0 200 400],'YTick',-1:1:1);
-cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision');
-print(fHandle,'-depsc','-painters','randomreward_m2.ai')
-
-%%
-% fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 4 3.3]);
-% scatter(1:200,rwrsp(1:200,1),3,'k','filled')
-% hold on;
-% beta = glmfit(1:200,rwrsp(1:200,1));
-% plot([1 200],[1 200]*beta(2)+beta(1),'r');
-% [r,p]= corr([1:200]',rwrsp(1:200,1));
-% xlabel('Trial');
-% ylabel('Predicted DA response');
-% text(120,-0.4,['r = ',num2str(round(r*1000)/1000)],'FontSize',5);
-% text(120,-0.6,['p = ',num2str(p)],'FontSize',5);
-% set(gca,'Box','off','TickDir','out','FontSize',5,'LineWidth',0.35,'XTick',0:100:200,'YTick',-1:2);
-% print(fHandle,'-dtiff','-r600','randomreward_anccr.tif')

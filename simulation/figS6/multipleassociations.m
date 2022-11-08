@@ -1,3 +1,9 @@
+% simulate net contingency with multiple number of associations
+% c1->r1
+% c2->r2
+% c3->c4->r3
+% c5,c6,c7,c9: not associated with reward
+
 clearvars; clc; close all;
 rng(2);
 
@@ -18,7 +24,7 @@ w = 0.5;
 k = 1;                 
 minimumrate = 10^(-3);
 maximumjitter = 0.1;
-beta = [0,0,0,0,0,0,0,0,1,1,1];
+beta = ones(1,11); % assumed all stimuli are MCTs to get net contingency across evey possible pairs
 threshold = 0.6;
 Tratio = 1.2;
 exact_mean_or_not = 1;
@@ -30,6 +36,7 @@ nave = 1000;
 avecuersp = nan(nIter,3);
 for iIter = 1:nIter
     iIter
+    %generate eventlog
     eventlog = simulateEventsTrialLess(repmat(numcue,1,7),[1,2,3,5,6,7,8],[9,10,11,nan,nan,nan,nan],...
         [1,1,1,nan,nan,nan,nan],nan,meanITI,meanITI*3,0,cuerewdelay,rew_probs);
     cs3idx = eventlog(:,1)==3;
@@ -37,17 +44,18 @@ for iIter = 1:nIter
     eventlog = [eventlog;eventlog_c4];
     eventlog = sortrows(eventlog,2);
     
+    % simulate anccr
     [DA,ANCCR,~,~,NC] = calculateANCCR(eventlog, IRI*Tratio, alpha_anccr, k,...
         samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,nan,exact_mean_or_not);
+    % calculate averaged net contingency across last 1000 events
     NCave(iIter,:,:) = squeeze(mean(NC(:,:,end-nave+1:end),3));
 end
 
-%%
+%% save data
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('multipleassociations.mat','NCave');
 
-%%
-
+%% FigS6C
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 5.8 4.2]);
 imagesc(squeeze(mean(NCave)));
 statelist = {'C1';'C2';'C3';'C4';'C5';'C6';'C7';'C8';'R1';'R2';'R3'};
@@ -56,6 +64,3 @@ set(gca,'XTick',1:11,'XTickLabel',statelist,'Box','off','TickDir','out','FontSiz
 hc = colorbar;
 set(hc,'XTick',-0.5:0.5:1,'Box','off','TickDir','out','XLim',[-0.5 1]);
 
-%%
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-print(fHandle,'-depsc','-painters',[dir,'\multipleassociations.ai']);

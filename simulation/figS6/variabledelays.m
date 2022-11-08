@@ -1,3 +1,5 @@
+% simulate trial-less task with multiple cue-reward pairs having various 
+% cue-reward delays using ANCCR
 clearvars; clc; close all;
 rng(2);
 
@@ -29,15 +31,19 @@ for iIter = 1:nIter
     iIter
     for iI = 1:2
         if iI==1
+            % with cue-reward associaiton
             eventlog = simulateEventsTrialLess(repmat(numcue,1,3),1:3,4:6,[1,1,1],...
                 [nan,nan,nan],repmat(meanITI,1,3),repmat(meanITI*3,1,3),[0,0,0],cuerewdelay,[1,1,1]);
         else
+            % no association control
             eventlog = simulateBackgroundRewards(repmat(numcue,1,6),....
                 repmat(meanITI,1,6),1:6,[zeros(1,3),ones(1,3)],1);
         end
                 
         [DA,ANCCR,~,~,NC] = calculateANCCR(eventlog, IRI*Tratio, alpha_anccr, k,...
             samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,nan,exact_mean_or_not);
+        
+        % calculate averaged response over last 100 cues 
         for icue = 1:length(cuerewdelay)
             incue = eventlog(:,1)==icue;
             cuersp = DA(incue);
@@ -46,11 +52,11 @@ for iIter = 1:nIter
     end
 end
 
-%%
+%% save data
 cd('D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\data');
 save('variabledelays.mat','avecuersp','cuerewdelay','meanITI');
 
-%%
+%% FigS6B
 clr_light = {[1 0.8 0.8],[0.8 0.8 0.8]};
 clr = {[1 0 0],[0 0 0]};
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 3 4]);
@@ -64,7 +70,3 @@ set(gca,'XTick',1:3,'XTickLabel',{'C1';'C2';'C3'},'XTickLabelRotation',45,...
     'YTick',0:0.5:1,'Box','off','TickDir','out',...
     'FontSize',8,'LineWidth',0.35,'XLim',[0.5 3.5],'YLim',[-0.2 1.1]);
 ylabel('Predicted cue response');
-
-%%
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-print(fHandle,'-depsc','-painters',[dir,'\variabledelays.ai']);

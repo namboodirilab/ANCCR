@@ -4,7 +4,7 @@ function [eventlog] = simulateEventTime(sim_time, cue_label, reward_label, ...
 %reward parameters. Simulation runs for specified time rather than
 %specific number of events.
 
-eventlog = NaN(5000,3); % Picked arbitrarily large number for size, modify if too small
+eventlog = NaN(5000,3); % Picked arbitrarily large number for size
 running_time = 0;
 running_idx = 0;
 while running_time < sim_time
@@ -25,7 +25,6 @@ while running_time < sim_time
         eventlog(running_idx, 2) = running_time;
         eventlog(running_idx, 3) = rew_mag;
     end
-
     running_time = running_time + post_rew_delay; % trial end time - next trial starts from here
 end
 eventlog = rmmissing(eventlog);

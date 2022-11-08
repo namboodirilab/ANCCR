@@ -18,13 +18,15 @@ if ~isnan(inhib_mcts)
             if isempty(cause_idx) % If a cause can't be found, don't save target
                 targ_idx(j) = nan;
             else
+                % Save index if cause is found
                 targ_idx(j) = inhib_targ_idxs(j);
             end
         end
-        targ_idx = rmmissing(targ_idx);
+        targ_idx = rmmissing(targ_idx); % Remove nan for 'not found' instances
         count_to_trials_off = 0;
         for k = 1:length(targ_idx)
             count_to_trials_off = count_to_trials_off + 1;
+            % Once intended trial num is reached, inhibit
             if count_to_trials_off == trials_off
                 count_to_trials_off = 0;
                 optolog(targ_idx(k),2) = inhib_mag(i);

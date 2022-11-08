@@ -2,16 +2,11 @@ function [optolog, first_inh] = simulateInhibitionBlock(eventlog, inhib_targets,
 %SIMULATEINHIBITION generates 'optolog', an array where the first column
 %includes indicators for whether inhibition is occuring for a given
 %timestep and the second column encodes the magnitude of the 'substituted'
-%DA response. Inhib_targets can be a scalar or list with labels for the
-%events for which the DA response should be altered. Inhib_mag is a scalar
-%or list indicating the the magnitude of altered DA response. Start and
-%stop indicies refer to the cu-specific index at in event log at which 
-%inhibition should start and stop (i.e. if start = 600 and inhibiting C1, 
-%will start idx at 600th instance of C1.
+%DA response. 
 optolog = zeros(length(eventlog), 2);
 assert(length(inhib_targets) == length(inhib_mag))
 
-if ~isnan(inhib_mcts)
+if ~isnan(inhib_mcts) % If inhibiting rewards after MCTs
     for i = 1:length(inhib_targets)
         inhib_targ_idxs = find(eventlog(:,1) == inhib_targets(i));
         if isnan(stop)
@@ -24,7 +19,7 @@ if ~isnan(inhib_mcts)
         for j = 1:length(inhib_targ_idxs)
             cause_idx = find((inhib_mct_idxs - inhib_targ_idxs(j)) == 1, 1);
             if ~isempty(cause_idx)
-                dice = rand();
+                dice = rand(); % Rng to determine if inhibition happens
                 if dice <= inhib_prob
                     optolog(inhib_targ_idxs(j), 2) = inhib_mag(i);
                     % Inhibited targets get label 1
@@ -40,13 +35,13 @@ if ~isnan(inhib_mcts)
                     % the cause gets label 3
                     optolog(inhib_mct_idxs(cause_idx), 1) = 3;
                 end
-            else
+            else % If no causes are found, do not inhibit
                 optolog(inhib_targ_idxs(j), 2) = 0;
                 optolog(inhib_targ_idxs(j), 1) = 0;
             end
         end
     end
-else
+else % If generally inhibiting rew.
     for i = 1:length(inhib_targets)
         inhib_targ_idxs = find(eventlog(:,1) == inhib_targets(i));
         if isnan(stop)
@@ -54,7 +49,7 @@ else
         end
         inhib_targ_idxs = squeeze(inhib_targ_idxs(start:stop)); 
         for j = 1:length(inhib_targ_idxs)
-            dice = rand();
+            dice = rand(); % Rng to determine if inhibition happens
             if dice <= inhib_prob
                 optolog(inhib_targ_idxs(j), 2) = inhib_mag(i);
                 optolog(inhib_targ_idxs(j), 1) = 1;

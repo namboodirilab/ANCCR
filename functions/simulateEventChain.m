@@ -2,6 +2,7 @@ function [eventlog] = simulateEventChain(n_sequences, n_cues, omissionlabel, mea
     max_ITI, intercuedelay, cuerewdelay, rew_prob, postrewdelay)
 %SIMULATEEVENTCHAIN: Output an eventlog for the given cue/reward params.
 %Expects a sequence of cues preceding a reward.
+
 eventlog = NaN(n_sequences*n_cues,2); % Initialize eventlog
 running_time = 0; % Initialize time
 running_idx = 0; % Initialize index counter
@@ -33,6 +34,7 @@ for i = 1:n_sequences % Loop through unique sequences
         eventlog(running_idx, 2) = running_time;
         eventlog(running_idx, 3) = 1;
     else
+        % If keeping track of omission, save omission instances
         if ~isnan(omissionlabel)
             running_idx = running_idx + 1;
             eventlog(running_idx, 1) = omissionlabel;

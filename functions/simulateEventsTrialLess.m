@@ -3,6 +3,7 @@ function [eventlog] = simulateEventsTrialLess(n_cues, cue_label, reward_label, .
 %SIMULATEEVENTS: Output an eventlog and omission indices for the given cue/
 %reward parameters.
 
+% First check if one cue or multiple are being simulated (scalar vs. array)
 if length(reward_mag)==1
     reward_mag = repmat(reward_mag,1,length(cue_label));
 end
@@ -22,32 +23,35 @@ end
 eventlog = NaN(2*sum(n_cues),3);
 
 running_idx = 0;
-for jcue = 1:length(cue_label)
+for jcue = 1:length(cue_label) % Loop through labels for distinct cues
     running_time = 0;
     for i = 1:n_cues(jcue)
         running_idx = running_idx + 1;
         new_ts = max_ITI(jcue)+1;
+        % Ensure timestamp falls between min/max ITI
         while new_ts > max_ITI(jcue) | new_ts<min_ITI(jcue)
             new_ts = exprnd(mean_ITI(jcue));
         end
+        % Update eventlog with cue label and new timestamp
         eventlog(running_idx, 1) = cue_label(jcue);
-        eventlog(running_idx, 2) = new_ts + running_time;
+        eventlog(running_idx, 2) = new_ts + running_time; 
         eventlog(running_idx, 3) = 0;
-        
-        if rew_prob(jcue) > rand(1)
+        if rew_prob(jcue) > rand(1) % Rng to determine if reward is delivered
             running_idx = running_idx + 1;
             eventlog(running_idx, 1) = reward_label(jcue);
             eventlog(running_idx, 2) = new_ts + running_time + cue_rew_delay(jcue);
             eventlog(running_idx, 3) = reward_mag(jcue);
         else
             if ~isnan(omissionlabel(jcue))
+                % If no reward is delivered and omission is being tracked, save 
+                % omission instance in eventlog
                 running_idx = running_idx + 1;
                 eventlog(running_idx, 1) = omissionlabel(jcue);
                 eventlog(running_idx, 2) = new_ts + running_time + cue_rew_delay(jcue);
                 eventlog(running_idx, 3) = 0;
             end
         end
-        running_time = running_time + new_ts;
+        running_time = running_time + new_ts; % Update running time
     end
 end
 eventlog = rmmissing(eventlog);

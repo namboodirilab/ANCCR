@@ -5,18 +5,26 @@ directory = 'D:\OneDrive - UCSF\Huijeong\DA';
 mouseList = {'HJ_FP_M2';'HJ_FP_M3';'HJ_FP_M4';'HJ_FP_F1';'HJ_FP_F2';'HJ_FP_M6';'HJ_FP_M7';'HJ_FP_M8'};
 nMouse = length(mouseList);
 
+% event indices
+index_lick = 5;
+index_bgdrw = 7;
+index_sessionend = 0;
+
+boutinterval = 1000;
+
 lickrate = nan(nMouse,15,3);
 rcorr = nan(nMouse,1);
 [avepsth_nonconsum,avepsth_consum] = deal(nan(nMouse,15,1085));
 for iM = 1:nMouse
 
-    behfile = findfiles('Events_randomrewards.mat',[directory,'\',mouseList{iM},'\Randomrewards'],1,'Day');
+    % pool behavior files
+    behfile = findfiles(mouseList{iM},[directory,'\',mouseList{iM},'\Randomrewards'],1,'Day','.mat');
     days = cellfun(@(y) str2double(y(4)),cellfun(@(x) strsplit(fileparts(x),{'Day','_'}),...
         behfile,'UniformOutput',false));
-    [days,sortidx] = sort(days);
+    [~,sortidx] = sort(days);
     behfile = behfile(sortidx);
     index_30s = cellfun(@(x) contains(fileparts(x),'30s'),behfile);
-    behfile(find(index_30s,1,'first'):end) = []; % use only 12s IRI sessions
+    behfile(find(index_30s,1,'first'):end) = []; % use 12s IRI sessions
     nFile = length(behfile);
     
     [aucrw_total,lickrw_total] = deal([]);
@@ -29,6 +37,17 @@ for iM = 1:nMouse
             continue
         end
 
+        eventtime = eventlog(:,2);
+        eventindex = eventlog(:,1); 
+        % calculate event time stamps
+        licktime = eventtime(eventindex==index_lick);
+        bgdrwtime = eventtime(eventindex==index_bgdrw);
+        bgdrwinterval = [NaN;diff(bgdrwtime)];
+        sessionendtime = eventtime(eventindex==index_sessionend);
+        firstlicktime = firsttimeafterevent(licktime,bgdrwtime,[bgdrwtime(2:end);sessionendtime]);
+        [lickboutidx,lickconsumidx,consumboutlength,lickrwidx] =...
+            classifylicks(licktime,bgdrwtime,sessionendtime,boutinterval);
+
         %% averaged lick rates of session
         lickrate(iM,iF,1) = length(lickconsumidx)/(sessionendtime/1000); % total lick
         lickrate(iM,iF,2) = sum(lickconsumidx)/...
@@ -36,7 +55,7 @@ for iM = 1:nMouse
         lickrate(iM,iF,3) = sum(~lickconsumidx)/...
             ((sessionendtime-sum(consumboutlength(~isnan(consumboutlength))))/1000); %non-consummatory lick
 
-        %% reward-by-reward lick rate and response
+        %% reward-by-reward lick rate and DA response
         % exclued rewards if interval from previous reward is less than 3 s
         % or lick bout was continued from previous reward
         shortiri = bgdrwinterval<3000;

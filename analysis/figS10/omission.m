@@ -2,49 +2,49 @@ clearvars; clc;
 
 rng(7)
 
-directory = 'D:\OneDrive - University of California, San Francisco\Huijeong\DA';
-% directory = 'D:\OneDrive - UCSF\Photometry';
+directory = 'D:\OneDrive - UCSF\Huijeong\DA';
 
 mouseList = {'HJ_FP_M2';'HJ_FP_M3';'HJ_FP_M4';'HJ_FP_F1';'HJ_FP_F2';'HJ_FP_M6';'HJ_FP_M7'};
 nMouse = length(mouseList);
 
+% the first day of each condition; cue duration change and extinction
 startday = [29,24,32,19,24,19,20; 70,61,66,42,46,47,43];
+
 aucdata = cell(nMouse,2);
+% analysis window expecting to see omission response: 3-4 s from cue onset
+% in cue duration change, 9-10 s from cue onset in extinction 
 win = [3000 4000; 9000 10000];
 for iM = 1:nMouse
     iM
+    behfile = findfiles(mouseList{iM},[directory,'\',mouseList{iM},'\Pavlovian'],1,'Day','.mat');
+    days = cellfun(@(y) str2double(y(4)),cellfun(@(x) strsplit(fileparts(x),{'Day','_'}),...
+        behfile,'UniformOutput',false));
     for i = 1:2
-        behfile = FindFiles('Events_cues.mat','StartingDirectory',[directory,'\',mouseList{iM}],'CheckSubdir',1);
-        out = ~cellfun(@(x) contains(x,'Day'),behfile);
-        behfile(out) = [];
-        temp = cellfun(@(x) strsplit(x,'Day'),behfile,'UniformOutput',false);
-        temp = cellfun(@(x) strsplit(x{2},{'\','_'}),temp,'UniformOutput',false);
-        day = cellfun(@(x) str2double(x{1}),temp);
+        in = days==startday(i,iM);
+        load(behfile{in})
+
+        % load task related information
+        eventtime = eventlog(:,2);
+        eventindex = eventlog(:,1);
+        nosolenoidflag = eventlog(:,3);
+        [~,~,CS,CStime,~,~,fxreward] = eventfrompavlovian(eventtime,eventindex,nosolenoidflag);
         if i==1
-            behfile = behfile(day==startday(i,iM));
-        else
-            [day,sortidx] = sort(day);
-            behfile = behfile(sortidx);
-            behfile = behfile(find(day<=startday(i,iM),2,'last'));
+            CSrw = unique(CS(fxreward==1));
         end
-        load(behfile{1});
-        CSrw = unique(CS(fxreward==1));
-        if i==2
-            behfile(1) = [];
-            load(behfile{1});
-        end
+
+        load([fileparts(behfile{in}),'\Photometry.mat']);
         
-        load([fileparts(behfile{1}),'\Photometry.mat']);
-        
+        % calculate AUC during analysis window
         [timecs,cssignal] = alignsignal2event(T(:,1),dff',CStime(CS==CSrw),[-2000 12000],10);
         aucbase = aucsignal(cssignal,timecs,[-1000 0]);
         auccs = aucsignal(cssignal,timecs,win(i,:))/diff(win(i,:));
-        
+
+        % normalize response by pre-cue baseline response
         aucdata{iM,i} = auccs-aucbase;
     end
 end
 
-%%
+%% FigS10B
 aucdata_cumsum = cellfun(@cumsum,aucdata,'UniformOutput',false);
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 4 3.5]);
 hold on;
@@ -59,7 +59,4 @@ ylabel('Cumsum (DA response)');
 set(gca,'Box','off','TickDir','out','FontSize',8,'XTick',[0 25 50],'YTick',-200:100:200);
 xlim([0 51])
 ylim([-200 200]);
-%%
-cd('D:\heejeong\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\figS8');
-print(fHandle,'-depsc','-painters','omission_rsp.ai');
 

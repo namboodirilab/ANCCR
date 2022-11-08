@@ -1,0 +1,13 @@
+namespaces:
+- author:
+  - Huijeong Jeong
+  contact:
+  - huijeong.jeong@ucsf.edu
+  doc: extension for photometry data
+  name: ndx-photometry-namlab
+  schema:
+  - namespace: core
+    neurodata_types:
+    - TimeSeries
+  - source: ndx-photometry-namlab.extensions.yaml
+  version: 0.1.0

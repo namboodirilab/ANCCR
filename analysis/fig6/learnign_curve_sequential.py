@@ -1,80 +1,80 @@
-from functions.load import *
-from functions.plot import *
-from functions.general import *
-import os
+import functions.load as fnl
+import functions.plot as fnp
+import functions.general as fng
 import matplotlib.pyplot as plt
 import numpy as np
-from itertools import compress
 import scipy.stats as stat
 import pandas as pd
-import pingouin as pg
-from statsmodels.stats.anova import AnovaRM
 
+# name spaces for namlab nwb extension
+namespaces = ["C:\\Users\\Huijeong Jeong\\ndx-photometry-namlab\\spec\\ndx-photometry-namlab.namespace.yaml",
+              "C:\\Users\\Huijeong Jeong\\ndx-eventlog-namlab\\spec\\ndx-eventlog-namlab.namespace.yaml"]
+# DANDI set id
+dandiset_id = '000351'
 
-onedrivedir = 'D:/OneDrive - UCSF'
-#onedrivedir = 'D:/OneDrive - University of California, San Francisco'
-directory = onedrivedir+'/Huijeong'
+# animal list
 dathetlist = ['M2','M3','M4','M5','M6','M7','M8']
 datwtlist = ['F1']
 wtlist = ['F1','F2','F3','M1','M2','M3']
-mouselist = ['HJ_FP_datHT_stGtACR_'+i for i in dathetlist] + ['HJ_FP_datWT_stGtACR_'+i for i in datwtlist]\
-            + ['HJ_FP_WT_stGtACR_'+i for i in wtlist]
-foldername = ['randomrewards','pavlovian']
-daylist = []
+mouselist = ['HJ-FP-datHT-stGtACR-'+i for i in dathetlist] + ['HJ-FP-datWT-stGtACR-'+i for i in datwtlist]\
+            + ['HJ-FP-WT-stGtACR-'+i for i in wtlist]
 
+# event indices
 cs1index = 15
 rewardindex = 10
 randomrewardindex = 7
 lickindex = 5
-window = [0,1500]
-window_step = [-1500,0,1500]
+
+# windows for AUC
+window = [0,1.5] # window for reward auc
+window_step = [-1.5,0,1.5] # window for baseline, cs1, and cs2 auc
 
 ref = ['cs1','cs2','reward','lick','randomreward','lickcs1']
 response = {}
 for i in ref:
     response[i] = {}
-licks = np.full((len(mouselist),1),np.nan)
+
 for im,mousename in enumerate(mouselist):
     print(mousename)
 
-    dfffiles, _ = findfiles(os.path.join(directory, mousename, 'pavlovian'), '.p', daylist)
-    dfffiles_rr, _ = findfiles(os.path.join(directory, mousename, 'randomrewards'), '.p', daylist)
-    probetestidx = [i for i, v in enumerate(dfffiles) if 'probetest' in v]
-    if len(probetestidx) > 0:
-        dfffiles = dfffiles[:probetestidx[0]]+dfffiles_rr[:1]
+    # load DANDI url of an animal
+    url, path = fnl.load_dandi_url(dandiset_id, mousename)
 
     for i in ref:
         response[i][mousename] = []
 
-    for i,v in enumerate(dfffiles):
-        matfile, _ = findfiles(os.path.dirname(v), '.mat', [])
-        matfile = load_mat(matfile[0])
-        dff = load_pickle(v)
-        dff = dff[0]
+    for i,v in enumerate(url):
+        # load eventlog and dff from nwb file
+        results, _ = fnl.load_nwb(v, namespaces, [('a', 'eventlog'), ('p', 'photometry', 'dff')])
 
-        if i == len(dfffiles)-1:
-            firstlicktimes = first_event_time_after_reference(matfile['eventlog'], lickindex, randomrewardindex, 5000)
-            dopamine_rsp = [calculate_auc(dff['dff'],dff['time'],firstlicktimes,window)]
-            baseline_rsp = [calculate_auc(dff['dff'],dff['time'],firstlicktimes,[-1500,0])]
+        # random reward session (pre-pavlovian)
+        if i == 0:
+            firstlicktimes = fnp.first_event_time_after_reference(results['eventlog']['eventindex'],results['eventlog']['eventtime'], lickindex, randomrewardindex, 5)
+            dopamine_rsp = [fnp.calculate_auc(results['dff']['data'], results['dff']['timestamps'],firstlicktimes,window)]
+            baseline_rsp = [fnp.calculate_auc(results['dff']['data'], results['dff']['timestamps'],firstlicktimes,[-1.5,0])]
             response['randomreward'][mousename].append(np.subtract(dopamine_rsp, baseline_rsp))
+        # sequential conditioning sessions
         else:
-            firstlicktimes = first_event_time_after_reference(matfile['eventlog'], lickindex, rewardindex, 5000)
-            licktimes = matfile['eventlog'][matfile['eventlog'][:, 0] == lickindex, 1]
-            cuetimes = matfile['eventlog'][matfile['eventlog'][:, 0] == cs1index, 1]
-            cuetimes = cuetimes[range(0, len(cuetimes), 2)]
+            firstlicktimes = fnp.first_event_time_after_reference(results['eventlog']['eventindex'],results['eventlog']['eventtime'], lickindex, rewardindex, 5)
+            licktimes = results['eventlog']['eventtime'][results['eventlog']['eventindex'] == lickindex]
+            cs1times = results['eventlog']['eventtime'][results['eventlog']['eventindex'] == cs1index]
+            cs1times = cs1times[range(0, len(cs1times), 2)]
 
-            dopamine_rsp = [calculate_auc(dff['dff'], dff['time'], cuetimes+iw, window) for iw in window_step]+\
-                           [calculate_auc(dff['dff'],dff['time'],firstlicktimes,window)]
+            # dopamine response during baseline, CS1, CS2, and reward
+            dopamine_rsp = [fnp.calculate_auc(results['dff']['data'], results['dff']['timestamps'], cs1times+iw, window) for iw in window_step]+\
+                           [fnp.calculate_auc(results['dff']['data'], results['dff']['timestamps'],firstlicktimes,window)]
+            # normalized dopamine responses by subtracting baseline response
             for ir,vr in enumerate(ref[:-3]):
                 response[vr][mousename].append(np.subtract(dopamine_rsp[ir + 1], dopamine_rsp[0]))
 
-            lick_rsp = [[np.sum(np.logical_and(licktimes>=ic+j,licktimes<ic+j+3000)) for ic in cuetimes] for j in [-3000,0]]
-            lickcs1_rsp = [[np.sum(np.logical_and(licktimes >= ic + j, licktimes < ic + j + 1500)) for ic in cuetimes] for
-                           j in [-1500, 0]]
+            # number of licks
+            lick_rsp = [[np.sum(np.logical_and(licktimes>=ic+j,licktimes<ic+j+3)) for ic in cs1times] for j in [-3,0]] # from CS1 to reward
+            lickcs1_rsp = [[np.sum(np.logical_and(licktimes >= ic + j, licktimes < ic + j + 1.5)) for ic in cs1times] for
+                           j in [-1500, 0]] # from CS1 to CS2
             response['lick'][mousename].append(np.subtract(lick_rsp[1],lick_rsp[0]))
             response['lickcs1'][mousename].append(np.subtract(lickcs1_rsp[1],lickcs1_rsp[0]))
 
-
+## set plotting parameters
 plt.rcParams['axes.titlesize'] = 10
 plt.rcParams['axes.labelsize'] = 8
 plt.rcParams['xtick.labelsize'] = 8
@@ -99,6 +99,7 @@ nblock = 1
 clr = ['black','red']
 clr_light = ['grey','pink']
 cm = 1/2.54
+dir = 'D:\OneDrive - UCSF//figures\manuscript\dopamine_contingency//revision'
 
 # fig6I left
 lastdaydata = {}
@@ -110,12 +111,12 @@ for itype in range(0, 2):
         intype = [i for i, v in enumerate(mouselist) if np.logical_or('WT' in v, 'wt' in v)]
     else:
         intype = [i for i, v in enumerate(mouselist) if np.logical_and('HT' in v, '8' not in v)]
-    cs1rsp = [flatten([movmean(v,int(np.floor(len(v)/nblock)),int(np.floor(len(v)/nblock)),0) for v in response['cs1'][mouselist[i]]]) for i in intype]
-    rwrsp = [flatten([movmean(v,int(np.floor(len(v)/nblock)),int(np.floor(len(v)/nblock)),0) for v in response['reward'][mouselist[i]]]) for i in intype]
+    cs1rsp = [fng.flatten([fng.movmean(v,int(np.floor(len(v)/nblock)),int(np.floor(len(v)/nblock)),0) for v in response['cs1'][mouselist[i]]]) for i in intype]
+    rwrsp = [fng.flatten([fng.movmean(v,int(np.floor(len(v)/nblock)),int(np.floor(len(v)/nblock)),0) for v in response['reward'][mouselist[i]]]) for i in intype]
 
     [plt.plot(np.divide(x[:3]+x[-2:],y[0]),color=clr_light[itype],linewidth=0.35) for x,y in zip(cs1rsp,rwrsp)]
     data = [np.divide(x[:3]+x[-2:],y[0]) for x,y in zip(cs1rsp,rwrsp)]
-    p, tstat, param = lnregress(np.concatenate(np.tile(np.arange(5),(len(intype),1))).reshape(-1,1), np.concatenate(data))
+    p, tstat, param = fng.lnregress(np.concatenate(np.tile(np.arange(5),(len(intype),1))).reshape(-1,1), np.concatenate(data))
     lastdaydata[itype] = [x[-1] for x in data]
     plt.errorbar(range(0,5,1),[np.mean(x) for x in zip(*[np.divide(x[:3]+x[-2:], y[0]).tolist() for x, y in zip(cs1rsp, rwrsp)])],
                  [np.std(x)/np.sqrt(len(intype)) for x in zip(*[np.divide(x[:3]+x[-2:], y[0]).tolist() for x, y in zip(cs1rsp, rwrsp)])],
@@ -131,7 +132,7 @@ plt.yticks([0,0.5,1,1.5])
 plt.xticks(range(0,5),['1','2','3','n-1','n'])
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-fig.savefig(onedrivedir+'//figures\manuscript\dopamine_contingency//revision/fig6_new/dynamics_sessionave_'+str(nblock)+'_block.pdf',bbox_inches='tight')
+fig.savefig(dir+'//figures\manuscript\dopamine_contingency//revision/fig6_new/dynamics_sessionave_'+str(nblock)+'_block.pdf',bbox_inches='tight')
 
 # fig6I right
 lastdaydata = {}
@@ -197,4 +198,3 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 fig.savefig(onedrivedir+'//figures\manuscript\dopamine_contingency//revision/fig6_new/anticipatory_lick_cs1_'+str(nblock)+'_block.pdf',bbox_inches='tight')
 
-pg.mixed_anova(dv='lick', between='type', within='session', subject ='mouse',data = dataframe)

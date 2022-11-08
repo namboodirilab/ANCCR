@@ -1,66 +1,58 @@
-from functions.load import *
-from functions.plot import *
-from functions.general import *
-import os
+import functions.load as fnl
+import functions.plot as fnp
 import matplotlib.pyplot as plt
 import numpy as np
 import random
 
-directory = 'D:/OneDrive - UCSF/Huijeong'
-#directory = 'D:\OneDrive - University of California, San Francisco\Huijeong'
+# name spaces for namlab nwb extension
+namespaces = ["C:\\Users\\Huijeong Jeong\\ndx-photometry-namlab\\spec\\ndx-photometry-namlab.namespace.yaml",
+              "C:\\Users\\Huijeong Jeong\\ndx-eventlog-namlab\\spec\\ndx-eventlog-namlab.namespace.yaml"]
+# DANDI set id
+dandiset_id = '000351'
+
+# animal list
 dathetlist = ['M2','M3','M4','M5','M6','M7']
 datwtlist = ['F1']
 wtlist = ['F1','F2','F3','M1','M2','M3']
-mouselist = ['HJ_FP_datWT_stGtACR_'+i for i in datwtlist] + ['HJ_FP_WT_stGtACR_'+i for i in wtlist]
-foldername = ['randomrewards','pavlovian']
-daylist = []
+mouselist = ['HJ-FP-datWT-stGtACR-'+i for i in datwtlist] + ['HJ-FP-WT-stGtACR-'+i for i in wtlist]
 
-cs1index = 15
+# event indices
+csindex = 15
 rewardindex = 10
 lickindex = 5
-window = [0, 3000]
-window_bl = [-2000, 0]
-binsize = 20
 
-peakidx = {}
 auc = {}
 for im, mousename in enumerate(mouselist):
     print(mousename)
 
-    dfffiles, _ = findfiles(os.path.join(directory, mousename, 'pavlovian'), '.p', daylist)
-    probetestidx = [i for i, v in enumerate(dfffiles) if 'probetest' in v]
-    if len(probetestidx) > 0:
-        dfffiles = dfffiles[:probetestidx[0]]
+    # load DANDI url of an animal
+    url, path = fnl.load_dandi_url(dandiset_id, mousename)
+    url= [y for x,y in zip(path,url) if 'Pavlovian' in x]
 
-    peakidx[mousename] = []
     auc[mousename] = {}
-    auc[mousename]['early'] = []
-    auc[mousename]['late'] = []
-    for i, v in enumerate(dfffiles):
-        matfile, _ = findfiles(os.path.dirname(v), '.mat', [])
-        matfile = load_mat(matfile[0])
-        dff = load_pickle(v)
-        dff = dff[0]
+    auc[mousename]['early'] = [] # dopamine response to CS1
+    auc[mousename]['late'] = [] # dopamine response to CS2
+    for i, v in enumerate(url):
+        # load eventlog and dff from nwb file
+        results,_ = fnl.load_nwb(v, namespaces,[('a','eventlog'),('p','photometry','dff')])
 
-        signal, _, _, time = align_signal_to_reference(dff['dff'], dff['time'], matfile['eventlog'], cs1index, [-2000, 3000], 0, 0)
-        cs1time = matfile['eventlog'][matfile['eventlog'][:,0]==cs1index,1]
-        early_temp = calculate_auc(dff['dff'], dff['time']/1000, cs1time[range(0,len(cs1time),2)]/1000, [0,1])
-        late_temp = calculate_auc(dff['dff'],dff['time']/1000,cs1time[range(1,len(cs1time),2)]/1000,[0,1])
+        # CS timestamps
+        cstime = results['eventlog']['eventtime'][results['eventlog']['eventindex']==csindex]
+        cs1time = cstime[range(0,len(cstime),2)]
+        cs2time = cstime[range(1,len(cstime),2)]
+
+        # calculate AUC during CS1(early) and CS2(late)
+        early_temp = fnp.calculate_auc(results['dff']['data'], results['dff']['timestamps'], cs1time, [0,1])
+        late_temp = fnp.calculate_auc(results['dff']['data'], results['dff']['timestamps'],cs2time,[0,1])
+
+        # in first session, calculate dopamine response to reward (first lick after reward delivery)
         if i==0:
-            firstlicktimes = first_event_time_after_reference(matfile['eventlog'], lickindex, rewardindex, 5000)
-            auc[mousename]['reward'] = calculate_auc(dff['dff'], dff['time'] / 1000, firstlicktimes/ 1000, [0, 1])
+            firstlicktimes = fnp.first_event_time_after_reference(results['eventlog']['eventindex'],results['eventlog']['eventtime'], lickindex, rewardindex, 5)
+            auc[mousename]['reward'] = fnp.calculate_auc(results['dff']['data'], results['dff']['timestamps'], firstlicktimes, [0, 1])
         auc[mousename]['early'] = auc[mousename]['early'] + early_temp
         auc[mousename]['late'] = auc[mousename]['late'] + late_temp
 
-        mov_signal = movmean(signal[:, np.logical_and(time >= 0, time <= 3000)], int(binsize / np.mean(np.diff(dff['time']))), 1, 1)
-        mov_baseline = movmean(signal[:, np.logical_and(time >= -2000, time < 0)], int(binsize / np.mean(np.diff(dff['time']))), 1, 1)
-        mov_time = movmean(time[np.logical_and(time >= 0, time <= 3000)], int(binsize / np.mean(np.diff(dff['time']))), 1, 0)
-
-        time_signal = time[np.logical_and(time >=0, time <= 3000)]
-        peakidx_temp, _ = peaksearch(mov_signal, [2*np.std(i) for i in mov_baseline], 'max')
-
-        peakidx[mousename] = peakidx[mousename] + peakidx_temp
-
+## set plotting parameters
 plt.rcParams['axes.titlesize'] = 10
 plt.rcParams['axes.labelsize'] = 8
 plt.rcParams['xtick.labelsize'] = 8
@@ -81,12 +73,11 @@ plt.rcParams['font.sans-serif'] = ['Helvetica']
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['text.color'] = 'k'
 
-
-ntrials = 200
-#dir = 'D:\OneDrive - University of California, San Francisco//figures\manuscript\dopamine_contingency//revision//fig6_new'
-dir = 'D:\OneDrive - UCSF//figures\manuscript\dopamine_contingency//revision//fig6_new'
-
+dir = 'D:\OneDrive - University of California, San Francisco\\figures\manuscript\dopamine_contingency\\revision\\test'
 cm = 1/2.54
+
+# fig 6D left
+ntrials = 200
 fig = plt.figure(figsize=(4*cm, 3*cm))
 rect = 0.2,0.2,0.68,0.68
 ax = fig.add_axes(rect)
@@ -104,6 +95,7 @@ plt.xlim([0,ntrials])
 plt.ylim([-1.5,2.5])
 fig.savefig(dir+'//backpropagation_2cues_timecourse.pdf',bbox_inches='tight')
 
+# fig 6D middle
 fig = plt.figure(figsize=(2.25*cm, 3*cm))
 rect = 0.6,0.1,0.4,0.9
 rect = [x*0.85 for x in rect]
@@ -122,12 +114,10 @@ plt.yticks([-0.6,-0.3,0,0.3,0.6])
 plt.ylabel('\u0394Nrom. DA response\n(CS2-CS1)')
 fig.savefig(dir+'//backpropagation_delta_2cues.pdf',bbox_inches='tight')
 
-plt.close('all')
+# fig 6D right
 clr_light = ['grey','lightblue']
 clr = ['k','b']
 fig = plt.figure(figsize=(2.25*cm, 3*cm))
-rect = 0.6,0.1,0.4,0.9
-rect = [x*0.85 for x in rect]
 ax = fig.add_axes(rect)
 data = [np.divide(np.nanmean(auc[x]['late'][150:200]),np.nanmean(auc[x]['early'][150:200])) for x in mouselist]
 plt.bar(0.5,np.mean(data),width=1,color='grey')

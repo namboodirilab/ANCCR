@@ -1,0 +1,43 @@
+groups:
+- neurodata_type_def: FiberPhotometrySeries
+  neurodata_type_inc: TimeSeries
+  doc: An extension of TimeSeries to include corresponding information and TTL for
+    the photometry recording data.Timestamp is not synchronized with the behavior
+    event timestamp yet. Timestamp in processing>dff is synchronized and ready for
+    analysis
+  attributes:
+  - name: optic_fiber_diameter
+    dtype: text
+    doc: The diameter of fiber
+    required: false
+  - name: virus
+    dtype: text
+    doc: Description of the virus used in the experiment (name, concentration)
+    required: false
+  - name: laser_intensity
+    dtype: text
+    doc: Information of the light delivered to the optic fiber tip  (power, frequency)
+    required: false
+  - name: coordinate
+    dtype: text
+    doc: Coordinates of the fiber tip. It should contain (AP, ML, DV)
+    required: false
+  - name: data_identity
+    dtype: text
+    doc: Description of the data. It should contain information for each column (405,
+      470, dff, etc)
+  - name: ttl_identity
+    dtype: text
+    doc: Description of the TTL. It should contain information for each column (session
+      onset, reward, etc)
+  datasets:
+  - name: ttl
+    dtype: numeric
+    shape:
+    - - null
+      - null
+    - - null
+    doc: TTL timeseries data
+- neurodata_type_def: DffSeries
+  neurodata_type_inc: TimeSeries
+  doc: An extension of TimeSeries to include processed dff and synchronized timestamps

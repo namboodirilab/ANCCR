@@ -2,14 +2,14 @@ clearvars; clc;
 
 rng(5)
 
-% task parameter
+% Task parameters
 meanITI = 100;
 maxITI = meanITI*3;
 cuerewdelay = 0.5; 
 numcs1only = 4000;
 numcs1cs2 = 1000;
 
-% model parameter
+% Model parameters
 samplingperiod = 0.2;
 alpha = 0.02;
 alpha_r = 10*alpha;
@@ -26,35 +26,39 @@ exact_mean_or_not = 0;
 
 nIter = 20;
 testtrial = numcs1only+[300:302]; % giving CS2 only w/o CS1
-%%
+
 [SRCs,Rs] = deal(cell(3,2));
 for iIter = 1:nIter
-    iIter
     %% w/ blocking: C1-R --> C1&C2-R
-    % pre-blocking
-    [eventlog,IRI] = simulateEvents(numcs1only, 1, 3, 1, nan,...
+    % Pre-blocking
+    [eventlog_pre,IRI] = simulateEvents(numcs1only, 1, 3, 1, nan,...
         meanITI, meanITI*3, cuerewdelay, 1, 0);
     
-    eventlog_temp = simulateEventChain(numcs1cs2, 2, nan, meanITI, ...
+    % Blocking
+    eventlog_paired = simulateEventChain(numcs1cs2, 2, nan, meanITI, ...
         meanITI*3, 0, cuerewdelay, 1, 0);
-    eventlog_temp(:,2) = eventlog_temp(:,2)+eventlog(end,2);
-    eventlog = [eventlog;eventlog_temp];
+    eventlog_paired(:,2) = eventlog_paired(:,2)+eventlog_pre(end,2);
+    eventlog = [eventlog_pre;eventlog_paired];
 
-    % probe test
+    % Probe test
     cs1idx = find(eventlog(:,1)==1);
     rwidx = find(eventlog(:,1)==3);
+    % Removed rewards following CS1 in test trials
     eventlog([cs1idx(testtrial),rwidx(testtrial)],:) = [];
 
     for iAct = 1:2
         if iAct==1
+            % No inhibition
             optolog = nan;
         else
+            % Add inhibition
             optolog = simulateInhibitionBlock(eventlog, 3, nan, 1, 1, numcs1only, nan);
         end
-        
+        % Calculate model values
         [DA,~,PRC,SRC,NC,R] =...
             calculateANCCR(eventlog,IRI*Tratio,alpha,k,samplingperiod,w,threshold,minimumrate,...
             beta,alpha_r,maximumjitter,optolog);
+        % Save SRC and R values across iterations
         for ie = 1:3
             SRCs{ie,iAct}(iIter,:) = squeeze(SRC(ie,3,eventlog(:,1)==ie));
             Rs{ie,iAct}(iIter,:) = squeeze(R(ie,3,eventlog(:,1)==ie));
@@ -62,20 +66,14 @@ for iIter = 1:nIter
     end
 end
 
-%%
+% Calculate value estimate
 Beh = cellfun(@(x,y) x.*y,SRCs,Rs,'UniformOutput',false);
 
-%% plotting behavior 
-%   P(a,s) = softmax(Q(a,s))*Indicator(s)
-%   possible (a,s): no lick, lick after cs1, lick after cs2 
-%   Q(nolick,cs) = 0;
-%   Q(lick,cs) = SRC(cs,reward)*R(cs)
-%   Indicator(s) = whether or not s is when meaningful causal target is given
-%%
 beta= 5;
 temperature = 1/beta;
 cost = -0.3;
 
+% Calculate lick probabilities
 prob = cell(2,1);
 for i = 1:2
 for itest = 1:length(testtrial)
@@ -84,7 +82,7 @@ prob{i}(:,itest) = exp(q(:,2)/temperature)./sum(exp(q/temperature),2);
 end
 end
 
-%%
+%% Plot lick probabilities
 clr = {[0 0 0],[0 0 1];[0.6 0.6 0.6],[0.6 0.6 1]};
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 2.5 3.5]);
 axes('Position',axpt(5,5,2:5,1:4)) 
@@ -105,7 +103,5 @@ dir = 'D:\OneDrive - University of California, San Francisco\dopamine contingenc
 cd(dir);
 print(fHandle,'-depsc','-painters','unblocking.ai')
 
-
-%%
-
+% T-test
 [~,p,~,stat] = ttest2(mean(prob{1}(:,1:3),2),mean(prob{2}(:,1:3),2));

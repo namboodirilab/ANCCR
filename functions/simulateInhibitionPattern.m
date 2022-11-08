@@ -26,13 +26,10 @@ if ~isnan(inhib_mcts)
         for k = 1:length(targ_idx)
             count_to_trials_off = count_to_trials_off + 1;
             if count_to_trials_off == trials_off
-            %if count_to_trials_off > trials_off % if you want to
-%                 start inhibition after 'trials-off' incidences of cs1-rw
-%                 pairs, just uncomment this line and erase the line 34 and 38
                 count_to_trials_off = 0;
                 optolog(targ_idx(k),2) = inhib_mag(i);
                 optolog(targ_idx(k),1) = 1;
-                optolog(targ_idx(k)-1,1) = 2; % maybe you wanted this too? causes of inhibited targts get label 2
+                optolog(targ_idx(k)-1,1) = 2; 
             end
         end
     end

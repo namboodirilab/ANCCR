@@ -1,7 +1,7 @@
 function [rpetimeline,valuetimeline,eventtimeline,statetimeline,inhibitiontimeline] =...
     simulateCSC(eventlog,rewardstate,statesize,...
     alpha,gamma,lambda,inhibitionlog,withITIstates,cuetoITIdelay,maxstatelength)
-
+%SIMULATECSC
 if nargin<8
    withITIstates = 1; 
 end

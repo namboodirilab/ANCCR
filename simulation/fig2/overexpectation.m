@@ -2,7 +2,7 @@ clearvars; clc;
 
 rng(2)
 
-% task parameter
+% Task parameter
 meanITI = [50, 50];
 maxITI = meanITI*3;
 cuerewdelay = [0.5, 0.5]; 
@@ -10,7 +10,7 @@ num_training = [500, 500];
 num_paired = 500;
 num_test = 3;
 
-% model parameter
+% Model parameter
 samplingperiod = 0.2;
 alpha = 0.02;
 alpha_r = 10*alpha;
@@ -28,11 +28,7 @@ T = Tratio*(meanITI(1)+cuerewdelay(1));
 
 nIter = 20;
 % Mark new idxs for giving CS1 only w/o CS2 or reward
-%testtrial = [sum(num_training)+ [1:3],sum(num_training)+num_paired+ [4:6]];
 cs1_testidxs = [num_training(1)+[1:3], num_training(1)+num_paired+ [4:6]];
-% Array to store values across iterations
-% SRCs = nan(nIter, length(beta), sum(num_training) + num_paired + 2*num_test);
-% Rs = nan(nIter, length(beta), sum(num_training) + num_paired + 2*num_test);
 
 for iIter = 1:nIter
     % Generate 200 instances (each) of C1 ->R, C2 -> R
@@ -58,11 +54,13 @@ for iIter = 1:nIter
         calculateANCCR(eventlog,T,alpha,k,samplingperiod,w,threshold,minimumrate,...
         beta,alpha_r,maximumjitter,nan);
     for ie = 1:3
+        % Save SRC, Rs across iterations for value calculation
         SRCs{ie}(iIter,:) = squeeze(SRC(ie,3,eventlog(:,1)==ie));
         Rs{ie}(iIter,:) = squeeze(R(ie,3,eventlog(:,1)==ie));
     end
 end
 
+% Calculate value
 Beh = cellfun(@(x,y) x.*y,SRCs,Rs,'UniformOutput',false);
 
 %% Plotting SRC*R (rough value of cue) response
@@ -72,12 +70,14 @@ beta= 5;
 temperature = 1/beta;
 cost = -0.3;
 
+% Calculate action probabilities
 prob = cell(2,1);
 for itest = 1:length(cs1_testidxs)
     q = [zeros(size(Beh{1},1),1), Beh{1}(:,cs1_testidxs(itest))+cost];
     prob{1}(:,itest) = exp(q(:,2)/temperature)./sum(exp(q/temperature),2);
 end
 
+% Plot action probabilities
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 2.5 3.5]);
 axes('Position',axpt(5,5,2:5,1:4)) 
 hold on;

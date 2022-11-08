@@ -13,7 +13,7 @@ if nargin<=12 | isnan(omidx)
     omidx = [nan,nan];
 end
 if nargin<=13
-    % if exact_mean_or_not=1, calculate exact mean for Mij instead using
+    % if exact_mean_or_not=1, calculate exact mean for Mij instead of using
     % alpha
     exact_mean_or_not = 0;
 end
@@ -188,7 +188,7 @@ for jt = 1:ntime
         
     end
     
-    % Update sample eligibility trace
+    % Update sample eligibility trace (Mi-)
     if jt<ntime
         % Time to sample baseline b/t events
         subsamplingtime = samplingtime(samplingtime>=eventlog(jt,2) & samplingtime<eventlog(jt+1,2));
@@ -207,6 +207,7 @@ for jt = 1:ntime
             nextt = jt+1;
         end
 
+        % update alpha of sample eligibility trace
         if exact_mean_or_not == 0
             if ~isstruct(alpha)
                 alphat = alpha;

@@ -4,14 +4,14 @@ clearvars; clc;
 
 rng(2)
 %% Task setup
-% task parameter
+% Task parameters
 meanITI = 100;
 maxITI = meanITI*3;
 cuerewdelay = 0.5;
 postrewdelay = 1;
 numcue = 3000;
 
-% model parameter
+% Model parameters
 samplingperiod = 0.2;
 alpha = 0.02;
 alpha_r = 0.2;
@@ -35,7 +35,7 @@ probability_results = nan(nIter, length(rew_probs), length(beta));
 DA = [];
 for j = 1:length(rew_probs)
     for iIter = 1:nIter
-        printf('%s probability, %s iteration\n', num2str(j), num2str(iIter));
+        % Simulate cue/reward delivery
         [eventlog] = simulateEvents(numcue, 1, 2, 1, 3,  ...
             meanITI, maxITI, cuerewdelay, rew_probs(j), postrewdelay);
         
@@ -47,9 +47,11 @@ for j = 1:length(rew_probs)
         outom = sort(randsample(length(omidx),round(length(omidx)*(1-rew_probs(j)))));
         eventlog(omidx(outom),:) = [];
          
+        % Calculate model values
         [DA,ANCCR,PRC,SRC,NC,Rs] = calculateANCCR(eventlog, IRI(2)*Tratio, alpha, k, ...
             samplingperiod ,w,threshold,minimumrate,beta,alpha_r,maximumjitter,nan,[3,2]);
         
+        % Save cue, reward, omission indices
         cue_resp = DA(eventlog(:,1) == 1);
         rew_resp = DA(eventlog(:,1) == 2);
         om_resp(~ismember(1:length(omidx),outom)) = DA(eventlog(:,1) == 3);
@@ -59,33 +61,15 @@ for j = 1:length(rew_probs)
    end
 end
 
-%% plotting DA response
-
-% ===general comments for figures===
-% size: set 'PaperPosition' as [2, 2, 2.5, 3.5] in figure function
-% line width
-%   - individual data: 0.35
-%   - averaged data (or if there's only one line w/o individual data): 0.5
-%   - axes line: 0.35
-% Font size: 8
-% ylabel
-%   - simulated DA response: Pedicted DA response (or predicted cue/reward
-%   response); this is just for consistency with other plots
-
+%% Plotting DA response
 
 close all
-
 dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
-% dir = 'D:\OneDrive - UCSF\figures\manuscript\dopamine_contingency\revision';
 
 % Plot reward probability results
 clr_light = {[0.6 0.6 0.6],[0.6 0.6 1],[1 0.6 0.6]};
 clr = {[0 0 0],[0 0 1],[1 0 0]};
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 2.5 3.5]);
-% this will keep actual size of axes excluding label the same acros figures
-% instead of letting matlab does adjust size of axes to fit xlabel/ylabel in figure 
-% axpt is a function in function folder which input is [nX, nY, xPos, yPos]
-% go to that function for more detail
 axes('Position',axpt(5,5,2:5,1:4)) 
 hold on;
 for i = 1:3
@@ -100,6 +84,5 @@ set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,...
 xlabel('Reward probability (%)')
 ylabel('Predicted DA response')
 
-%%
 print(fHandle,'-depsc','-painters',[dir,'\rew_prob.ai']);
 

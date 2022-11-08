@@ -3,6 +3,7 @@ function [eventlog,IRI] = simulateEvents(n_cues, cue_label, reward_label, ...
     postrewdelay, bgdrw_label, bgdrw_IRI, bgdrw_cue_delay, bgdrw_mag)
 %SIMULATEEVENTS: Output an eventlog for the given cue reward parameters. 
 
+% First check if one cue or multiple are being simulated (scalar vs. array)
 if length(mean_ITI)==1
     mean_ITI = repmat(mean_ITI,1,length(cue_label));
 end

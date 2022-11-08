@@ -4,7 +4,7 @@ clearvars; clc;
 
 rng(2)
 %% Task setup
-% task parameter
+% Task parameters
 cuerewdelay = [1, 1, 1];
 postrewdelay = [1, 1, 1] ;
 numcue = [50, 900, 50];
@@ -14,7 +14,7 @@ meanITI = [30 30 30];
 maxITI = meanITI*3;
 IRI = meanITI + cuerewdelay;
 
-% model parameter
+% Model parameters
 samplingperiod = 0.2;
 alpha = 0.02;
 alpha_r = alpha*10;
@@ -33,23 +33,27 @@ da_stds = nan(3, nIter);
 %% Run simulation
 %Simulate for cue reward pairs with three different magnitudes
 for iIter = 1:nIter
+    % Simulate cue and reward delivery
     [eventlog] = simulateEvents(numcue, [1,1,1], [2,2,2], rew_mags, nan,...
     meanITI, maxITI, cuerewdelay, rew_probs, postrewdelay);
 
+    % Calculate model values
     [DA,ANCCR,PRC,SRC,NC,Rs] = calculateANCCR(eventlog, IRI(1)*Tratio, alpha, k, ...
     samplingperiod,w,threshold,minimumrate,beta,alpha_r, ...
     maximumjitter,nan,nan);
 
+    % Find inidices corresponding to each reward magnitude
     tens = find(eventlog(:,3) == 10); fives = find(eventlog(:,3) == 5);
     ones = find(eventlog(:,3) == 1);
+    % Save separate DA responses for each reward magnitude
     da_10 = DA(tens); da_5 = DA(fives); da_1 = DA(ones);
     da_means(:, iIter) = [mean(da_1), mean(da_5), mean(da_10)];
 end
 
-%%
 close all
 dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision';
 
+% Plot mean values
 fHandle = figure('PaperUnits','Centimeters','PaperPosition',[2 2 2.5 3.5]);
 axes('Position',axpt(5,5,2:5,1:4)) 
 hold on;
@@ -62,32 +66,6 @@ set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,...
 xlabel('Reward magnitude')
 ylabel('Predicted DA response')
 print(fHandle,'-depsc','-painters',[dir,'\rew_mag.ai']);
-
-% 
-% f = figure; 
-% hold on;
-% for i = 1:nIter
-%     errorbar([1, 2, 3], da_means(:, i), da_stds(:, i), ':k',"LineWidth",0.1)
-% end
-% 
-% errorbar([1, 2, 3], mean(da_means,2), mean(da_stds,2),'k',"LineWidth", 2)
-% figure; hold on;
-% for i = 1:nIter
-%     errorbar([1, 2, 3], da_means(:, i), da_stds(:, i), ':k',"LineWidth",0.5)
-% end
-% 
-% errorbar([1, 2, 3], mean(da_means,2), mean(da_stds,2),'k',"LineWidth",1.5)
-% xticks([1, 2, 3])
-% xticklabels({'r=10', 'r=5', 'r=1'})
-% axis padded
-% ylabel('DA(r)')
-% title('Dopamine response to trial-by-trial changes in reward magnitude')
-% 
-% savefig(f,'rewardmag_trialbytrial.fig')
-% print(f,'-depsc','-painters','rewardmag_trialbytrial.ai')
-% save('rewardmag_trialbytrial.mat', 'da_means', 'da_stds')
-% 
-% close all
 
 
 

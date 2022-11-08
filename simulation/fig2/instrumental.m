@@ -84,8 +84,10 @@ for iIter = 1:nIter
     
     da_c1_n1 = DA(c1_n1_idx);
     
+    % Calculate value
     q_src = SRC.*Rs;
     temperature = 0.5;
+    % Calculate action probabilities
     p_action_c1_n = softmax(1,3,q_src(1:2,:,:), temperature, inh_c1_idxs);
     p_action_c1_n1 = softmax(1,3,q_src(1:2,:,:), temperature, c1_n1_idx);
     
@@ -112,7 +114,6 @@ xlabel('Trial');
 dir = 'D:\OneDrive - University of California, San Francisco\dopamine contingency\figures\figures for r3';
 cd(dir);
 print(fHandle,'-depsc','-painters','instrumental.ai')
-% save('instrumental.mat', 'all_iter_p_action_c1_n', 'all_iter_p_action_c1_n1')
 
 all_iter_p_action_c1_n_flat = mean(all_iter_p_action_c1_n, 1);
 all_iter_p_action_c1_n1_flat = mean(all_iter_p_action_c1_n1, 1);

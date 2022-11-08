@@ -1,4 +1,7 @@
 function d = point2line(pt, v1, v2)
+%POINT2LINE: calculate distance from point pt to the line which connects
+%two points, v1 and v2. 
+
 if size(pt,2)==2
     pt = [pt,zeros(size(pt,1),1)];
     v1 = [v1,0];

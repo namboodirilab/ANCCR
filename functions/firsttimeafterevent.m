@@ -1,4 +1,7 @@
 function firsttime = firsttimeafterevent(targeteventtime,referenceeventtime,window)
+% FIRSTTIMEAFTEREVENT: find first target event time after each reference
+% event. Window specifies the searching window from referenceeventtime.
+
 if isnan(window)
     % if window is nan, find time of first target event after reference
     % event time w/o limited window 

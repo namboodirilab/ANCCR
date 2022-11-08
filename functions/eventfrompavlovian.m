@@ -38,21 +38,21 @@ trialendtime = eventtime(eventindex==index_trialend); % trial end time
 
 % find first lick time after cue-associated reward delivery
 if ~trialless
-if ~isempty(trialendtime)
-    if nanmean(trialendtime-fxrwtime)>=2000
-        % if trialendtime was logged & delay b/w trialendtime and reward
-        % time was larger than 2s, search first lick until trialendtime
-        firstfxlicktime = firsttimeafterevent(licktime,fxrwtime,trialendtime);
+    if ~isempty(trialendtime)
+        if nanmean(trialendtime-fxrwtime)>=2000
+            % if trialendtime was logged & delay b/w trialendtime and reward
+            % time was larger than 2s, search first lick until trialendtime
+            firstfxlicktime = firsttimeafterevent(licktime,fxrwtime,trialendtime);
+        else
+            % else, search first lick until 1s before next cue delivery
+            firstfxlicktime = firsttimeafterevent(licktime,fxrwtime,[CStime(2:end)-1000;sessionendtime]);
+        end
     else
-        % else, search first lick until 1s before next cue delivery
         firstfxlicktime = firsttimeafterevent(licktime,fxrwtime,[CStime(2:end)-1000;sessionendtime]);
     end
 else
-    firstfxlicktime = firsttimeafterevent(licktime,fxrwtime,[CStime(2:end)-1000;sessionendtime]);
-end
-else
+    % in trial-less task, find first lick after reward time w/o any
+    % constrained window
     firstfxlicktime = firsttimeafterevent(licktime,fxrwtime,nan);
 end
-
-
 end

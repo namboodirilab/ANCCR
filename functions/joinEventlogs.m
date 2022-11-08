@@ -1,5 +1,5 @@
 function eventlog = joinEventlogs(varargin)
-
+%JOINEVENTLOGS: join multiple eventlogs and generate a single event log
 eventlog = [];
 nt = 0;
 for i = 1:length(varargin)
@@ -8,5 +8,5 @@ for i = 1:length(varargin)
     eventlog = [eventlog;eventlog_temp];
     nt = eventlog(end,2);
 end
-    
+
 end

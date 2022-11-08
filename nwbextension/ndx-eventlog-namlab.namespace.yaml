@@ -1,0 +1,16 @@
+namespaces:
+- author:
+  - Huijeong Jeong
+  contact:
+  - huijeong.jeong@ucsf.edu
+  doc: extension for behavior eventlog
+  name: ndx-eventlog-namlab
+  schema:
+  - namespace: core
+    neurodata_types:
+    - NWBDataInterface
+    - DynamicTable
+    - VectorData
+    - VectorIndex
+  - source: ndx-eventlog-namlab.extensions.yaml
+  version: 0.1.0

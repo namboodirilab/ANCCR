@@ -1,0 +1,67 @@
+groups:
+- neurodata_type_def: Eventlog
+  neurodata_type_inc: NWBDataInterface
+  doc: A list of timestamp, index, and nonsolenoidflag of events
+  quantity: '*'
+  datasets:
+  - name: eventtime
+    dtype: float32
+    dims:
+    - num_events
+    shape:
+    - null
+    doc: Event timestamps, in milliseconds, from arduino; does not match with raw
+      photometry timestamp
+    attributes:
+    - name: unit
+      dtype: text
+      value: milliseconds
+      doc: Unit of measurement for timestamps, which is fixed to 'milliseconds'.
+  - name: eventindex
+    dtype: int
+    dims:
+    - num_events
+    shape:
+    - null
+    doc: Event index; see label to know what each index means
+  - name: nonsolenoidflag
+    dtype: int
+    dims:
+    - num_events
+    shape:
+    - null
+    doc: 'Indicates solenoid omission: if =1, no solenoid was actually given. Or cue
+      identity: 0=first cue, 1=second cue'
+  links:
+  - name: eventtable
+    target_type: AnnotatedEventsTable
+    doc: annotated events table
+    quantity: '?'
+- neurodata_type_def: ParameterTable
+  neurodata_type_inc: DynamicTable
+  doc: Table to hold task parameters.Each row corresponds to a different parameter.
+  datasets:
+  - name: parameter_description
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: Description for each event type.
+  - name: parameter_index
+    neurodata_type_inc: VectorIndex
+    doc: values for each parameter.
+  - name: parameter
+    neurodata_type_inc: VectorData
+    dtype: int
+    doc: values for each parameter.
+- neurodata_type_def: AnnotatedEventsTable
+  neurodata_type_inc: DynamicTable
+  doc: Table to hold event label, description for each label. Each row corresponds
+    to a different event type.
+  datasets:
+  - name: event_index
+    neurodata_type_inc: VectorData
+    dtype: int
+    doc: Index for each event type.
+  - name: event_description
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: Description for each event type.

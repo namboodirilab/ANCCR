@@ -11,6 +11,7 @@ Here we provided three different types of codes in separate folders:
   This folder contains matlab and python functions that are used in simulation and analysis scripts.
   
 Lastly,
+
 4. extension: This folder contains yaml files that are needed for NWB file extensions.
 
 last update: 11/9/2022

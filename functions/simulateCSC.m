@@ -1,3 +1,9 @@
+function [rpetimeline,valuetimeline,eventtimeline,statetimeline,inhibitiontimeline] =...
+    simulateCSC(eventlog,rewardstate,statesize,...
+    alpha,gamma,lambda,inhibitionlog,withITIstates,cuetoITIdelay,maxstatelength)
+
+%SIMULATECSC: simulate microstimulus TDRL model. 
+
 %   rewardstate: eventindex of rewards
 %   statesize: size of state
 %   alpha: learning rate
@@ -11,10 +17,6 @@
 %           from each cue onset)
 %   cuetoITIdelay: delay from cue onset to ITI start
 %   maxstatelength: truncate states at maxstatelength from each cue onset
-
-=======
-%SIMULATECSC
->>>>>>> 6c37cd802dc7da23d7e8cf0d75083ef655da654a
 if nargin<8
    withITIstates = 1; 
 end

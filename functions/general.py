@@ -3,6 +3,8 @@ def flatten(lst):
     return a
 
 def movmean(lst,n,step,dim):
+    # moving average
+
     import numpy as np
 
     try:
@@ -21,6 +23,11 @@ def movmean(lst,n,step,dim):
     return a
 
 def peaksearch(lst,threshold,option):
+    # search peak that is above threshold
+
+    # lst: signal
+    # threshold: threshold for peak
+    # option: the way you find peak - find max, first, or last peak
     import numpy as np
     if len(threshold) == 1:
         threshold = np.repeat(threshold, len(lst))
@@ -43,6 +50,7 @@ def peaksearch(lst,threshold,option):
 
 
 def lnregress(X, y):
+    # linear regression
     from scipy import stats
     from sklearn.linear_model import LinearRegression
     import numpy as np

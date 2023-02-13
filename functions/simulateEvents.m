@@ -1,7 +1,11 @@
 function [eventlog,IRI] = simulateEvents(n_cues, cue_label, reward_label, ...
     reward_mag, omissionlabel, mean_ITI, max_ITI, cue_rew_delay, rew_prob,...
-    postrewdelay, bgdrw_label, bgdrw_IRI, bgdrw_cue_delay, bgdrw_mag)
+    postrewdelay, bgdrw_label, bgdrw_IRI, bgdrw_cue_delay, bgdrw_mag, distribution)
 %SIMULATEEVENTS: Output an eventlog for the given cue reward parameters. 
+
+if nargin<15
+    distribution = 'exponential';
+end
 
 % First check if one cue or multiple are being simulated (scalar vs. array)
 if length(mean_ITI)==1
@@ -31,11 +35,16 @@ running_idx = 0;
 for i = 1:sum(n_cues)
     running_idx = running_idx + 1;
     icue = order_cue(i); % Index of unique cue being generated
-    new_ts = exprnd(mean_ITI(icue)); % Exp. dist. timestamp for given cue
-    if new_ts > max_ITI(icue)
-        % If new ts exceeds max, set to max
-        new_ts = max_ITI(icue);
+    if strcmp(distribution,'exponential')
+        new_ts = exprnd(mean_ITI(icue)); % Exp. dist. timestamp for given cue
+        if new_ts > max_ITI(icue)
+            % If new ts exceeds max, set to max
+            new_ts = max_ITI(icue);
+        end
+    elseif strcmp(distribution,'uniform')
+        new_ts = rand(1)*mean_ITI(icue)*0.4+mean_ITI(icue)*0.8; % +/- 20% of mean ITI
     end
+       
     % Update eventlog with cue label and new timestamp
     eventlog(running_idx, 1) = cue_label(icue);
     eventlog(running_idx, 2) = new_ts + running_time;

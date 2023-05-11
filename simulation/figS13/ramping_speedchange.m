@@ -9,16 +9,18 @@ cuerewdelay = 1; % delay from cs2 to reward
 cuecuedelay = 1; % delay b/w cs1 and cs2
 consumdelay = 3;
 meanITI = 6;
-speed = [0.5,2];
+speed = [0.5,2]; % scale of speed: 0.5,faster; 2,slower
+IRI = cuerewdelay*8+meanITI+consumdelay;
 
 % model parameter
 samplingperiod = 0.2;
 w = 0.5;
 k = 1;
-Tratio = 1.2;
+Tratio = [1.2;0.5];
+exponent = 0.01;
 alpha = 0.02;
 alpha_r = 0.2;
-threshold = 0.4;
+threshold = 0.5;
 minimumrate = 10^(-3);
 beta = [zeros(1,8),1]';
 maximumjitter = 0.1;
@@ -29,7 +31,7 @@ nExp = size(meanITI,1); % number of experiments
 darsp = cell(3,1);
 nIter = 100;
 for iiter = 1:nIter
-    iiter
+    iiter  
     %% generate eventlog
     % training before incorporating speed change trials
     eventlog_pre = simulateEventChain(numcue, 8, nan, meanITI, ...
@@ -61,8 +63,17 @@ for iiter = 1:nIter
    
     %% simulate 
     eventlog = joinEventlogs(eventlog_pre,eventlog_post);
-    [DA,ANCCR,PRC,SRC,NC] = calculateANCCR(eventlog, (meanITI+cuerewdelay*8+consumdelay)*Tratio, alpha, k,...
-        samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter);
+    
+    cueidx = find(eventlog(:,1)==1);
+    speedlog = ones(size(eventlog,1),1);
+    speedlog(cueidx(testtrial{1})+[0:8]) = 1/speed(1);
+    speedlog(cueidx(testtrial{2})+[0:8]) = 1/speed(2);
+    
+    % assume change in T
+    T = [repmat(IRI*Tratio(1),size(eventlog_pre,1),1);...
+        exp(-exponent*[1:size(eventlog_post,1)]')*(IRI*Tratio(1)-IRI*Tratio(2))+IRI*Tratio(2)];
+    [DA,ANCCR,PRC,SRC,NC] = calculateANCCR(eventlog, T, alpha, k,...
+        samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter); % now speed is multiplied directly to NC
     
     % pool dopamine response
     incue = find(eventlog(:,1)==1);
@@ -71,15 +82,12 @@ for iiter = 1:nIter
         darsp{itest}(iiter,:) = mean(DA(incue(testtrial{itest})+[0:7]),1);
         darsp{itest}(iiter,2:end) = darsp{itest}(iiter,2:end)*(1/speed(itest));
     end
-    darsp{3}(iiter,:) = mean(DA(incue(ctrltrial)+[0:7]),1);
+    darsp{3}(iiter,:) = mean(DA(incue(ctrltrial)+[0:7]),1); % 1:slow, 2:fast, 3:standard
 end
 
-%% save data
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\';
-cd(dir)
-save('data\ramping_speedchange.mat','darsp','threshold');
-
 %% FigS13D
+dir = 'D:\OneDrive - UCSF\dopamine contingency\erratum\';
+close all
 ct = cbrewer('seq','YlOrRd',5);
 ct = [ct([2,5],:);0 0 0];
 ratio = [speed,1];
@@ -91,7 +99,7 @@ for i = 1:3
     data(:,i) = darsp{i}(:,end)./darsp{3}(:,end);
     bar(x(i),nanmean(data(:,i)),0.8,'FaceColor',ct(i,:),'EdgeColor','none');
     errorbar(x(i),nanmean(data(:,i)),nanstd(data(:,i))/sqrt(size(data,1)),'k','CapSize',3);
-    [~,p,~,stat] = ttest(darsp{i}(:,end),darsp{3}(:,end))
+    [~,p,~,stat] = ttest(darsp{i}(:,end),darsp{3}(:,end));
 end
 plot([0 4],[1 1],'k--','LineWidth',0.5);
 xlim([0.25 3.75]);
@@ -99,3 +107,4 @@ ylim([0 2]);
 ylabel({'Normalized';'predicted DA'});
 set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,...
     'XTick',1:4,'XTickLabel',{'Slow';'Stand.';'Fast'},'XTickLabelRotation',45,'YTick',0:1:2);
+print(fHandle,'-depsc',[dir,'ramping_speed.ai']);

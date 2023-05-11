@@ -9,21 +9,20 @@ cuerewdelay = 1; % delay from cs2 to reward
 cuecuedelay = 1; % delay b/w cs1 and cs2
 consumdelay = 3;
 meanITI = 6;
-speed = [0.5,1,2];
+IRI = cuerewdelay*8+meanITI+consumdelay;
 
 % model parameter
 samplingperiod = 0.2;
 w = 0.5;
 k = 1;
-Tratio = 1.2;
+Tratio = [1.2;0.5];
+exponent = 0.01;
 alpha = 0.02;
 alpha_r = 0.2;
-threshold = 0.4;
+threshold = 0.5;
 minimumrate = 10^(-3);
 beta = [zeros(1,8),1]';
 maximumjitter = 0.1;
-
-nExp = size(meanITI,1); % number of experiments
 
 %%
 
@@ -39,13 +38,14 @@ for iiter = 1:nIter
     eventlog_post = simulateEventChain(numcue, 8, nan, meanITI, ...
         meanITI*3, cuecuedelay, cuerewdelay, 1, consumdelay);
 
-    % in 15% of total trials, animal was teleported either 
+    % in 3% of total trials, animal was teleported either 
     % from 1s to 2s, 3s to 4s, or 5s to 6s from first cue onset
     testidx = randsample(find(eventlog_post(:,1)==1),round(numcue*0.15));
     testidx = cellfun(@(x) sort(testidx(round(numcue*0.03*x/3)+1:round(numcue*0.03*(x+1)/3))),...
         num2cell(0:2),'UniformOutput',false);
     [~,testtrial] = cellfun(@(x) ismember(x,find(eventlog_post(:,1)==1)),testidx,'UniformOutput',false);
     testtrial = cellfun(@(x) x+numcue,testtrial,'UniformOutput',false);
+    
    
     for itest = 1:3
         eventlog_post(testidx{itest}+1+(itest-1)*2,:) = nan;
@@ -57,11 +57,12 @@ for iiter = 1:nIter
     % control trial w/o teleport
     ctrltrial = numcue+1:numcue*2;
     ctrltrial = ctrltrial(~ismember(ctrltrial,cell2mat(testtrial)));
-    
     eventlog = joinEventlogs(eventlog_pre,eventlog_post);
 
     %% simulate
-    [DA,ANCCR,PRC,SRC,NC] = calculateANCCR(eventlog, (meanITI+cuerewdelay+consumdelay)*Tratio, alpha, k,...
+    T = [repmat(IRI*Tratio(1),size(eventlog_pre,1),1);...
+        exp(-exponent*[1:size(eventlog_post,1)]')*(IRI*Tratio(1)-IRI*Tratio(2))+IRI*Tratio(2)];
+    [DA,ANCCR,PRC,SRC,NC,~,~,~,~,parts] = calculateANCCR(eventlog, T, alpha, k,...
         samplingperiod,w,threshold,minimumrate,beta,alpha_r,maximumjitter);
 
     % pool dopamine response
@@ -74,9 +75,9 @@ for iiter = 1:nIter
 end
 
 %% save data
-dir = 'D:\OneDrive - University of California, San Francisco\figures\manuscript\dopamine_contingency\revision\';
-cd(dir)
-save('data\ramping_teleport.mat','darsp','threshold');
+dir = 'D:\OneDrive - UCSF\dopamine contingency\erratum\';
+% cd(dir)
+% save('data\ramping_teleport.mat','darsp','threshold');
 
 %% FigS13B
 ct = cbrewer('seq','YlOrRd',5);
@@ -98,3 +99,4 @@ ylim([0.5 1.5]);
 ylabel({'Normalized';'Predicted DA'});
 set(gca,'Box','off','TickDir','out','FontSize',8,'LineWidth',0.35,...
     'XTick',1:4,'XTickLabel',{'T1';'T2';'T3';'Stand.'},'XTickLabelRotation',45,'YTick',0.5:0.5:1.5);
+print(fHandle,'-depsc',[dir,'ramping_teleport.ai']);
